@@ -12,13 +12,12 @@
 
 `./main <input_file1> <input_file2> <output_file1> <output_file2>`
 
-## Запуск отдельной программы
-
-`docker compose up --build`
-
 ## Тестирование
 
 `python test.py`
+
+Тестирование возможно при наличии технологий docker и docker compose.
+Программа запустит каждый *.c файл и проверит результаты.
 
 ### Тесты
 

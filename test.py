@@ -63,7 +63,7 @@ class Test:
             self.process_test_case(test_case_folder_path)
 
     @staticmethod
-    def create_dockerfile():
+    def create_dockerfile(CMD: str):
         print("CREATING DOCKERFILE")
         with open("Dockerfile", 'w') as dockerfile:
             dockerfile.write(f"""# Берем образ с поддержкой языка С для сборки программ
@@ -78,7 +78,10 @@ ARG PROGRAM_PATH
 COPY $PROGRAM_PATH main.c
 
 # Компилируем программы
-RUN gcc -o main main.c""")
+RUN gcc -o main main.c
+
+CMD {CMD}
+""")
 
     @staticmethod
     def delete_dockerfile():
@@ -99,8 +102,6 @@ RUN gcc -o main main.c""")
             args:
                 PROGRAM_PATH: {program_path}
         container_name: test_{index}
-        command: ["./main", "tests/input_1.txt", "tests/input_2.txt",
-            "tests/output_1.txt", "tests/output_2.txt"]
         tty: true
         volumes:
             - {test_case_folder}:/app/tests"""
@@ -134,7 +135,8 @@ RUN gcc -o main main.c""")
 
 
 def main():
-    Test.create_dockerfile()
+    Test.create_dockerfile(
+        '["./main", "tests/input_1.txt", "tests/input_2.txt", "tests/output_1.txt", "tests/output_2.txt"]')
     Test("./tests").test_programs("./programs")
     Test.delete_dockerfile()
 

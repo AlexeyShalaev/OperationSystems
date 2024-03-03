@@ -137,8 +137,8 @@ CMD {CMD}
 def main():
     Test.create_dockerfile(
         '["./main", "tests/input_1.txt", "tests/input_2.txt", "tests/output_1.txt", "tests/output_2.txt"]')
-    #Test("./tests").test_programs("./programs")
-    Test("./tests").test_program("./programs/5points.c")
+    Test("./tests").test_programs("./programs")
+    #Test("./tests").test_program("./programs/6points.c")
     Test.delete_dockerfile()
 
 

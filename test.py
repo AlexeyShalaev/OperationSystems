@@ -7,11 +7,9 @@ class Test:
     def __init__(self, tests_folder_path: str):
         self.tests_folders = []  # List of test folders
         for test_case_folder in os.listdir(tests_folder_path):
-            test_case_folder_path = os.path.join(
-                tests_folder_path, test_case_folder)
+            test_case_folder_path = os.path.join(tests_folder_path, test_case_folder)
             if os.path.isdir(test_case_folder_path):
-                self.tests_folders.append(
-                    test_case_folder_path.replace("\\", "/"))
+                self.tests_folders.append(test_case_folder_path.replace("\\", "/"))
 
     @staticmethod
     def process_test_case(test_case_folder):
@@ -21,16 +19,17 @@ class Test:
             output_file1_path = os.path.join(test_case_folder, "output_1.txt")
             output_file2_path = os.path.join(test_case_folder, "output_2.txt")
 
-            with open(input_file1_path, 'r') as input_file1, \
-                    open(input_file2_path, 'r') as input_file2, \
-                    open(output_file1_path, 'r') as output_file1, \
-                    open(output_file2_path, 'r') as output_file2:
+            with open(input_file1_path, "r") as input_file1, open(
+                input_file2_path, "r"
+            ) as input_file2, open(output_file1_path, "r") as output_file1, open(
+                output_file2_path, "r"
+            ) as output_file2:
 
                 input_data1 = set(input_file1.read().strip())
                 input_data2 = set(input_file2.read().strip())
 
-                expected_output1 = ''.join(input_data1 - input_data2)
-                expected_output2 = ''.join(input_data2 - input_data1)
+                expected_output1 = "".join(input_data1 - input_data2)
+                expected_output2 = "".join(input_data2 - input_data1)
 
                 output1 = output_file1.read().strip()
                 output2 = output_file2.read().strip()
@@ -65,8 +64,9 @@ class Test:
     @staticmethod
     def create_dockerfile(CMD: str):
         print("CREATING DOCKERFILE")
-        with open("Dockerfile", 'w') as dockerfile:
-            dockerfile.write(f"""# Берем образ с поддержкой языка С для сборки программ
+        with open("Dockerfile", "w") as dockerfile:
+            dockerfile.write(
+                f"""# Берем образ с поддержкой языка С для сборки программ
 FROM gcc:latest AS builder
 
 # Устанавливаем рабочую директорию в контейнере
@@ -81,7 +81,8 @@ COPY $PROGRAM_PATH main.c
 RUN gcc -o main main.c
 
 CMD {CMD}
-""")
+"""
+            )
 
     @staticmethod
     def delete_dockerfile():
@@ -91,7 +92,7 @@ CMD {CMD}
     def run_program(self, program_path):
         print(f"RUNNING PROGRAM {program_path}")
 
-        docker_compose_filename = f'docker-compose.yml'
+        docker_compose_filename = f"docker-compose.yml"
         docker_compose_content = f"version: '3'\nservices:"
 
         for index, test_case_folder in enumerate(self.tests_folders, start=1):
@@ -106,7 +107,7 @@ CMD {CMD}
         volumes:
             - {test_case_folder}:/app/tests"""
 
-        with open(docker_compose_filename, 'w') as docker_compose_file:
+        with open(docker_compose_filename, "w") as docker_compose_file:
             docker_compose_file.write(docker_compose_content)
 
         print()
@@ -117,8 +118,9 @@ CMD {CMD}
         return result
 
     def test_program(self, program_path):
-        print(f"====================== TESTING PROGRAM {
-              program_path} =========================")
+        print(
+            f"====================== TESTING PROGRAM {program_path} ========================="
+        )
         if self.run_program(program_path) == 0:
             self.test()
         else:
@@ -129,16 +131,18 @@ CMD {CMD}
         print(f"TESTING PROGRAMS IN {programs_folder}")
         for program_name in os.listdir(programs_folder):
             if program_name.endswith(".c"):
-                program_path = os.path.join(
-                    programs_folder, program_name).replace("\\", "/")
+                program_path = os.path.join(programs_folder, program_name).replace(
+                    "\\", "/"
+                )
                 self.test_program(program_path)
 
 
 def main():
     Test.create_dockerfile(
-        '["./main", "tests/input_1.txt", "tests/input_2.txt", "tests/output_1.txt", "tests/output_2.txt"]')
-    Test("./tests").test_programs("./programs")
-    #Test("./tests").test_program("./programs/6points.c")
+        '["./main", "tests/input_1.txt", "tests/input_2.txt", "tests/output_1.txt", "tests/output_2.txt"]'
+    )
+    # Test("./tests").test_programs("./programs")
+    Test("./tests").test_program("./programs/7points.c")
     Test.delete_dockerfile()
 
 

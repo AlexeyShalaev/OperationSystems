@@ -111,7 +111,7 @@ CMD {CMD}
             docker_compose_file.write(docker_compose_content)
 
         print()
-        result = os.system(f"docker-compose up --build")
+        result = os.system(f"docker compose up --build")
         print()
         print(f"PROGRAM {program_path} EXITED WITH CODE {result}")
         os.remove(docker_compose_filename)
@@ -141,8 +141,8 @@ def main():
     Test.create_dockerfile(
         '["./main", "tests/input_1.txt", "tests/input_2.txt", "tests/output_1.txt", "tests/output_2.txt"]'
     )
-    # Test("./tests").test_programs("./programs")
-    Test("./tests").test_program("./programs/7points.c")
+    Test("./tests").test_programs("./programs")
+    # Test("./tests").test_program("./programs/7points.c")
     Test.delete_dockerfile()
 
 

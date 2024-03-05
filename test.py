@@ -1,15 +1,136 @@
+from dataclasses import dataclass
 import os
+import subprocess
+import tempfile
+
+import yaml
+
+
+class Program:
+    class Unit:
+        def __init__(self, file_path: str, args: list[str]):
+            self.file_path = file_path
+            self.args = args if args else []
+
+        def __str__(self):
+            return f"Unit: {self.file_path}\nArgs: {self.args}\n"
+
+    def __init__(self, name: str, units: list[Unit]):
+        self.name = name
+        self.units = units
+
+    def __str__(self):
+        units = '\n'.join([str(unit) for unit in self.units])
+        return f"Program: {self.name}\n{units}\n\n"
+
+    def run(self, tests_folders):
+        copy_commands = ''
+        run_commands = ''
+        binary_commands = ''
+
+        for unit in self.units:
+            unit_filename = unit.file_path.split('/')[-1]
+            bin_filename = unit_filename.split('.c')[0]
+            copy_commands += f"COPY {unit.file_path} {unit_filename}\n"
+            run_commands += f"RUN gcc -o {bin_filename} {unit_filename}\n"
+            binary_commands += f"./{bin_filename} {' '.join(unit.args)} && "
+
+        binary_commands = binary_commands.strip(" && ")
+        dockerfile_name = f'{self.name}.Dockerfile'
+
+        with open(dockerfile_name, "w") as dockerfile:
+            dockerfile.write(f"""# Берем образ с поддержкой языка С для сборки программ
+FROM gcc:latest AS builder
+
+# Устанавливаем рабочую директорию в контейнере
+WORKDIR /app
+
+# Копируем исходные файлы программ в контейнер
+{copy_commands}
+
+{run_commands}
+
+CMD {binary_commands}
+""")
+        docker_compose_filename = f"docker-compose-{self.name}.yml"
+        docker_compose_content = f"version: '3'\nservices:"
+
+        for index, test_case_folder in enumerate(tests_folders, start=1):
+            docker_compose_content += f"""
+    test_{index}:
+        build:
+            context: .
+            dockerfile: {dockerfile_name}
+        container_name: test_{index}
+        tty: true
+        volumes:
+            - {test_case_folder}:/app/tests"""
+
+        with open(docker_compose_filename, "w") as docker_compose_file:
+            docker_compose_file.write(docker_compose_content)
+
+        # result = os.system(
+        #    f"docker compose -f {docker_compose_filename} up --build")
+        try:
+            result = subprocess.run(
+                ["docker", "compose", "-f", docker_compose_filename, "up", "--build"], timeout=5).returncode
+        except Exception:
+            result = -1
+        os.system(f"docker compose -f {docker_compose_filename} rm -fsv")
+        os.system(f"docker system prune -a -f")
+        print(f"PROGRAM {self.name} EXITED WITH CODE {result}")
+        #os.remove(dockerfile_name)
+        #os.remove(docker_compose_filename)
+        return result
+
+
+@dataclass
+class Config:
+    programs: list[Program]
+    tests_folders: list[str]
+
+    @staticmethod
+    def load_config(config_path: str, tests_folder_path: str = "./tests"):
+        # if not os.path.isabs(tests_folder_path):
+        #    tests_folder_path = os.path.abspath(tests_folder_path)
+
+        with open(config_path, "r") as file:
+            config = yaml.safe_load(file)
+
+        if len(config.keys()) != 1:
+            raise ValueError("Config file must have only 1 parameter.")
+
+        programs: list[Program] = []
+
+        programs_folder = list(config.keys())[0]
+
+        for program_name, program_data in config.get(programs_folder, {}).items():
+            units = []
+            for file_name, args in program_data.items():
+                file_path = os.path.join(
+                    programs_folder, file_name).replace("\\", "/")
+                units.append(Program.Unit(file_path, args))
+            programs.append(Program(program_name, units))
+
+        tests_folders = []  # List of test folders
+        for test_case_folder in os.listdir(tests_folder_path):
+            test_case_folder_path = os.path.join(
+                tests_folder_path, test_case_folder)
+            if os.path.isdir(test_case_folder_path):
+                tests_folders.append(test_case_folder_path.replace("\\", "/"))
+
+        return Config(programs, tests_folders)
+
+    def __str__(self) -> str:
+        tests_folders_str = '\n'.join(self.tests_folders)
+        return f"Programs:\n\n{''.join([str(program) for program in self.programs])}Tests Folders:\n{tests_folders_str}\n\n"
 
 
 class Test:
-    tests_folders: list[str]
+    config: Config
 
-    def __init__(self, tests_folder_path: str):
-        self.tests_folders = []  # List of test folders
-        for test_case_folder in os.listdir(tests_folder_path):
-            test_case_folder_path = os.path.join(tests_folder_path, test_case_folder)
-            if os.path.isdir(test_case_folder_path):
-                self.tests_folders.append(test_case_folder_path.replace("\\", "/"))
+    def __init__(self, config):
+        self.config = config
 
     @staticmethod
     def process_test_case(test_case_folder):
@@ -36,6 +157,7 @@ class Test:
 
                 if output1 == expected_output1 and output2 == expected_output2:
                     print(f"TEST CASE {test_case_folder} PASSED.")
+                    return 1
                 else:
                     print(f"TEST CASE {test_case_folder} FAILED.")
 
@@ -56,101 +178,46 @@ class Test:
             print(f"TEST CASE {test_case_folder} FAILED.")
             print(f"ERROR: {e}")
             print()
+        return 0
 
     def test(self):
-        for test_case_folder_path in self.tests_folders:
-            self.process_test_case(test_case_folder_path)
+        passed_tests = 0
+        for test_case_folder_path in self.config.tests_folders:
+            passed_tests += self.process_test_case(test_case_folder_path)
+        print(f"{passed_tests} / {len(self.config.tests_folders)}")
+        if passed_tests == len(self.config.tests_folders):
+            return True
+        return False
 
-    @staticmethod
-    def create_dockerfile(CMD: str):
-        print("CREATING DOCKERFILE")
-        with open("Dockerfile", "w") as dockerfile:
-            dockerfile.write(
-                f"""# Берем образ с поддержкой языка С для сборки программ
-FROM gcc:latest AS builder
-
-# Устанавливаем рабочую директорию в контейнере
-WORKDIR /app
-
-ARG PROGRAM_PATH
-
-# Копируем исходные файлы программ в контейнер
-COPY $PROGRAM_PATH main.c
-
-# Компилируем программы
-RUN gcc -o main main.c
-
-CMD {CMD}
-"""
-            )
-
-    @staticmethod
-    def delete_dockerfile():
-        print("DELETING DOCKERFILE")
-        os.remove("Dockerfile")
-
-    def run_program(self, program_path):
-        print(f"RUNNING PROGRAM {program_path}")
-
-        docker_compose_filename = f"docker-compose.yml"
-        docker_compose_content = f"version: '3'\nservices:"
-
-        for index, test_case_folder in enumerate(self.tests_folders, start=1):
-            docker_compose_content += f"""
-    test_{index}:
-        build:
-            context: .
-            args:
-                PROGRAM_PATH: {program_path}
-        container_name: test_{index}
-        tty: true
-        volumes:
-            - {test_case_folder}:/app/tests"""
-
-        with open(docker_compose_filename, "w") as docker_compose_file:
-            docker_compose_file.write(docker_compose_content)
-
-        print()
-        result = os.system(f"docker compose up --build")
-        print()
-        print(f"PROGRAM {program_path} EXITED WITH CODE {result}")
-        os.remove(docker_compose_filename)
-        return result
-
-    def test_program(self,*programs):
+    def test_program(self, program: Program):
+        status = False
         print(
-            f"====================== TESTING PROGRAM {program_path} ========================="
+            f"====================== TESTING PROGRAM {program.name} ========================="
         )
-        if self.run_program(program_path) == 0:
-            self.test()
+        for test_case_folder_path in self.config.tests_folders:
+            for file in os.listdir(test_case_folder_path):
+                if "output" in file:
+                    with open(os.path.join(test_case_folder_path, file), 'w') as f:
+                        f.write("INIT")
+        if program.run(self.config.tests_folders) == 0:
+            status = self.test()
         else:
-            print(f"PROGRAM {program_path} FAILED TO BUILD")
+            print(f"PROGRAM {program.name} FAILED TO RUN")
         print("===============================================")
+        return status
 
-    def test_programs(self, programs_folder):
-        print(f"TESTING PROGRAMS IN {programs_folder}")
-        for program_name in os.listdir(programs_folder):
-            program_path = os.path.join(programs_folder, program_name).replace(
-                    "\\", "/"
-                )
-            if program_path.endswith(".c"): 
-                self.test_program(program_path)
-            else:
-                if os.path.isdir(program_path):
-                    units = [os.path.join(program_path, unit) for unit in os.listdir(program_path) if unit.endswith(".c")]
-                    self.test_program(units)
-                        
-                    
-                
+    def run(self):
+        result = '\n\n------------------------\n'
+        for program in self.config.programs:
+            res = self.test_program(program)
+            result += f'{program}: {"OK" if res else "ERROR"}\n'
+        print(result)
 
 
 def main():
-    Test.create_dockerfile(
-        '["./main", "tests/input_1.txt", "tests/input_2.txt", "tests/output_1.txt", "tests/output_2.txt"]'
-    )
-    Test("./tests").test_programs("./programs")
-    # Test("./tests").test_program("./programs/7points.c")
-    Test.delete_dockerfile()
+    config = Config.load_config("config.yaml")
+    # Test(config).run()
+    Test(config).test_program(config.programs[-1])
 
 
 if __name__ == "__main__":

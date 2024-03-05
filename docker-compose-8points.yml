@@ -1,0 +1,42 @@
+version: '3'
+services:
+    test_1:
+        build:
+            context: .
+            dockerfile: 8points.Dockerfile
+        container_name: test_1
+        tty: true
+        volumes:
+            - ./tests/1:/app/tests
+    test_2:
+        build:
+            context: .
+            dockerfile: 8points.Dockerfile
+        container_name: test_2
+        tty: true
+        volumes:
+            - ./tests/2:/app/tests
+    test_3:
+        build:
+            context: .
+            dockerfile: 8points.Dockerfile
+        container_name: test_3
+        tty: true
+        volumes:
+            - ./tests/3:/app/tests
+    test_4:
+        build:
+            context: .
+            dockerfile: 8points.Dockerfile
+        container_name: test_4
+        tty: true
+        volumes:
+            - ./tests/4:/app/tests
+    test_5:
+        build:
+            context: .
+            dockerfile: 8points.Dockerfile
+        container_name: test_5
+        tty: true
+        volumes:
+            - ./tests/5:/app/tests

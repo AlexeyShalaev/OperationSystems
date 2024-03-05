@@ -8,7 +8,7 @@
 
 #define BUFFER_SIZE 5000
 #define FILE_PERMISSIONS 0666
-#define DEBUG_MODE 0
+#define DEBUG_MODE 1
 #define FIFO1 "fifo1"
 #define FIFO2 "fifo2"
 #define FIFO3 "fifo3"
@@ -36,14 +36,14 @@ int main(int argc, char *argv[])
     // Создание именованных каналов
     if (mkfifo(FIFO1, FILE_PERMISSIONS) == -1 || mkfifo(FIFO2, FILE_PERMISSIONS) == -1 || mkfifo(FIFO3, FILE_PERMISSIONS) == -1)
     {
-        perror("FIFO creation error");
+        perror("[MANAGER]: FIFO creation error");
         exit(EXIT_FAILURE);
     }
 
     int fd1 = open(FIFO1, O_WRONLY);
     if (fd1 == -1)
     {
-        perror("Opening FIFO1 error");
+        perror("[MANAGER]: Opening FIFO1 error");
         exit(EXIT_FAILURE);
     }
 

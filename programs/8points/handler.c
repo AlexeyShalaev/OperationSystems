@@ -8,7 +8,7 @@
 
 #define BUFFER_SIZE 5000
 #define FILE_PERMISSIONS 0666
-#define DEBUG_MODE 0
+#define DEBUG_MODE 1
 #define FIFO1 "fifo1"
 #define FIFO2 "fifo2"
 #define FIFO3 "fifo3"
@@ -22,30 +22,23 @@
 
 int main(int argc, char *argv[])
 {
-
-    // Создаём именованные каналы
-    // mknod(FIFO1, S_IFIFO | 0666, 0);
-    // mknod(FIFO2, S_IFIFO | 0666, 0);
-    // mknod(FIFO3, S_IFIFO | 0666, 0);
-
-    // Создание именованных каналов
-    if (mkfifo(FIFO1, FILE_PERMISSIONS) == -1 || mkfifo(FIFO2, FILE_PERMISSIONS) == -1 || mkfifo(FIFO3, FILE_PERMISSIONS) == -1)
-    {
-        perror("FIFO creation error");
-        exit(EXIT_FAILURE);
-    }
-
-    pid_t pid = fork();
-
     // Second process
-    int fd1 = open(FIFO1, O_RDONLY);
-    int fd2 = open(FIFO2, O_WRONLY);
-    int fd3 = open(FIFO3, O_WRONLY);
-    if (fd1 == -1 || fd2 == -1 || fd3 == -1)
+    int fd1, fd2, fd3;
+    int attempt = 0;
+
+    do
     {
-        perror("Opening FIFO error");
-        exit(EXIT_FAILURE);
-    }
+        sleep(1);
+        fd1 = open(FIFO1, O_RDONLY);
+        fd2 = open(FIFO2, O_WRONLY);
+        fd3 = open(FIFO3, O_WRONLY);
+        ++attempt;
+        if (attempt > 5)
+        {
+            perror("[HANDLER]: Opening FIFO error");
+            exit(EXIT_FAILURE);
+        }
+    } while (fd1 == -1 || fd2 == -1 || fd3 == -1);
 
     log("Second process\n");
 
@@ -56,7 +49,7 @@ int main(int argc, char *argv[])
     bytes_read = read(fd1, buffer, BUFFER_SIZE * 2);
     if (bytes_read == -1)
     {
-        perror("Read error");
+        perror("[HANDLER]: Read error");
         exit(EXIT_FAILURE);
     }
 

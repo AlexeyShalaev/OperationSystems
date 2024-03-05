@@ -117,7 +117,7 @@ CMD {CMD}
         os.remove(docker_compose_filename)
         return result
 
-    def test_program(self, program_path):
+    def test_program(self,*programs):
         print(
             f"====================== TESTING PROGRAM {program_path} ========================="
         )
@@ -130,11 +130,18 @@ CMD {CMD}
     def test_programs(self, programs_folder):
         print(f"TESTING PROGRAMS IN {programs_folder}")
         for program_name in os.listdir(programs_folder):
-            if program_name.endswith(".c"):
-                program_path = os.path.join(programs_folder, program_name).replace(
+            program_path = os.path.join(programs_folder, program_name).replace(
                     "\\", "/"
                 )
+            if program_path.endswith(".c"): 
                 self.test_program(program_path)
+            else:
+                if os.path.isdir(program_path):
+                    units = [os.path.join(program_path, unit) for unit in os.listdir(program_path) if unit.endswith(".c")]
+                    self.test_program(units)
+                        
+                    
+                
 
 
 def main():

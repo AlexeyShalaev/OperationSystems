@@ -1,0 +1,35 @@
+programs:
+  4points:
+    4points.c:
+      - "tests/input_1.txt"
+      - "tests/input_2.txt"
+      - "tests/output_1.txt"
+      - "tests/output_2.txt"
+
+  5points:
+    5points.c:
+      - "tests/input_1.txt"
+      - "tests/input_2.txt"
+      - "tests/output_1.txt"
+      - "tests/output_2.txt"
+
+  6points:
+    6points.c:
+      - "tests/input_1.txt"
+      - "tests/input_2.txt"
+      - "tests/output_1.txt"
+      - "tests/output_2.txt"
+
+  7points:
+    7points.c:
+      - "tests/input_1.txt"
+      - "tests/input_2.txt"
+      - "tests/output_1.txt"
+      - "tests/output_2.txt"
+  8points:
+    8points/handler.c:
+      - "tests/input_1.txt"
+      - "tests/input_2.txt"
+      - "tests/output_1.txt"
+      - "tests/output_2.txt"
+    8points/manager.c:

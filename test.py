@@ -69,18 +69,16 @@ CMD {binary_commands}
         with open(docker_compose_filename, "w") as docker_compose_file:
             docker_compose_file.write(docker_compose_content)
 
-        # result = os.system(
-        #    f"docker compose -f {docker_compose_filename} up --build")
         try:
             result = subprocess.run(
-                ["docker", "compose", "-f", docker_compose_filename, "up", "--build"], timeout=5).returncode
+                ["docker", "compose", "-f", docker_compose_filename, "up", "--build"], timeout=10).returncode
         except Exception:
             result = -1
         os.system(f"docker compose -f {docker_compose_filename} rm -fsv")
         os.system(f"docker system prune -a -f")
         print(f"PROGRAM {self.name} EXITED WITH CODE {result}")
-        #os.remove(dockerfile_name)
-        #os.remove(docker_compose_filename)
+        os.remove(dockerfile_name)
+        os.remove(docker_compose_filename)
         return result
 
 
@@ -210,14 +208,13 @@ class Test:
         result = '\n\n------------------------\n'
         for program in self.config.programs:
             res = self.test_program(program)
-            result += f'{program}: {"OK" if res else "ERROR"}\n'
+            result += f'{program.name}: {"OK" if res else "ERROR"}\n'
         print(result)
 
 
 def main():
     config = Config.load_config("config.yaml")
-    # Test(config).run()
-    Test(config).test_program(config.programs[-1])
+    Test(config).run()
 
 
 if __name__ == "__main__":

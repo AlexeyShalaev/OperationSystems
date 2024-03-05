@@ -8,7 +8,7 @@
 
 #define BUFFER_SIZE 5000
 #define FILE_PERMISSIONS 0666
-#define DEBUG_MODE 1
+#define DEBUG_MODE 0
 #define FIFO1 "fifo1"
 #define FIFO2 "fifo2"
 #define FIFO3 "fifo3"

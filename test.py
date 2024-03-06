@@ -1,7 +1,6 @@
 from dataclasses import dataclass
+from multiprocessing import Process
 import os
-import subprocess
-import tempfile
 
 import yaml
 
@@ -15,6 +14,11 @@ class Program:
         def __str__(self):
             return f"Unit: {self.file_path}\nArgs: {self.args}\n"
 
+        def run(self, test_folder):
+            cmd = f"./{self.file_path.replace('.c', '')} {' '.join([os.path.join(test_folder, arg) for arg in self.args])}"
+            print(f"Running {cmd}")
+            os.system(cmd)
+
     def __init__(self, name: str, units: list[Unit]):
         self.name = name
         self.units = units
@@ -23,63 +27,25 @@ class Program:
         units = '\n'.join([str(unit) for unit in self.units])
         return f"Program: {self.name}\n{units}\n\n"
 
-    def run(self, tests_folders):
-        copy_commands = ''
-        run_commands = ''
-        binary_commands = ''
-
+    def build(self):
+        res = 0
         for unit in self.units:
-            unit_filename = unit.file_path.split('/')[-1]
-            bin_filename = unit_filename.split('.c')[0]
-            copy_commands += f"COPY {unit.file_path} {unit_filename}\n"
-            run_commands += f"RUN gcc -o {bin_filename} {unit_filename}\n"
-            binary_commands += f"./{bin_filename} {' '.join(unit.args)} && "
+            res += os.system(
+                f"gcc -o {unit.file_path.replace('.c', '')} {unit.file_path}")
 
-        binary_commands = binary_commands.strip(" && ")
-        dockerfile_name = f'{self.name}.Dockerfile'
+        return res
 
-        with open(dockerfile_name, "w") as dockerfile:
-            dockerfile.write(f"""# Берем образ с поддержкой языка С для сборки программ
-FROM gcc:latest AS builder
+    def run(self, test_folder):
+        # Assuming self.units is a list of units
+        processes = []
+        for unit in self.units:
+            process = Process(target=unit.run, args=(test_folder, ))
+            process.start()
+            processes.append(process)
 
-# Устанавливаем рабочую директорию в контейнере
-WORKDIR /app
-
-# Копируем исходные файлы программ в контейнер
-{copy_commands}
-
-{run_commands}
-
-CMD {binary_commands}
-""")
-        docker_compose_filename = f"docker-compose-{self.name}.yml"
-        docker_compose_content = f"version: '3'\nservices:"
-
-        for index, test_case_folder in enumerate(tests_folders, start=1):
-            docker_compose_content += f"""
-    test_{index}:
-        build:
-            context: .
-            dockerfile: {dockerfile_name}
-        container_name: test_{index}
-        tty: true
-        volumes:
-            - {test_case_folder}:/app/tests"""
-
-        with open(docker_compose_filename, "w") as docker_compose_file:
-            docker_compose_file.write(docker_compose_content)
-
-        try:
-            result = subprocess.run(
-                ["docker", "compose", "-f", docker_compose_filename, "up", "--build"], timeout=10).returncode
-        except Exception:
-            result = -1
-        os.system(f"docker compose -f {docker_compose_filename} rm -fsv")
-        os.system(f"docker system prune -a -f")
-        print(f"PROGRAM {self.name} EXITED WITH CODE {result}")
-        os.remove(dockerfile_name)
-        os.remove(docker_compose_filename)
-        return result
+        # Wait for all processes to finish
+        for process in processes:
+            process.join()
 
 
 @dataclass
@@ -188,6 +154,9 @@ class Test:
         return False
 
     def test_program(self, program: Program):
+        if program.build():
+            print(f"PROGRAM {program.name} FAILED TO BUILD")
+            return False
         status = False
         print(
             f"====================== TESTING PROGRAM {program.name} ========================="
@@ -197,10 +166,10 @@ class Test:
                 if "output" in file:
                     with open(os.path.join(test_case_folder_path, file), 'w') as f:
                         f.write("INIT")
-        if program.run(self.config.tests_folders) == 0:
-            status = self.test()
-        else:
-            print(f"PROGRAM {program.name} FAILED TO RUN")
+            if program.run(test_case_folder_path) == 0:
+                status = self.test()
+            else:
+                print(f"PROGRAM {program.name} FAILED TO RUN")
         print("===============================================")
         return status
 
@@ -215,6 +184,13 @@ class Test:
 def main():
     config = Config.load_config("config.yaml")
     Test(config).run()
+    import time
+    i = 0
+    while True:
+        time.sleep(1)
+        i += 1
+        if i == 10:
+            break
 
 
 if __name__ == "__main__":

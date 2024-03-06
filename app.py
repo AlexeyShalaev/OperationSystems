@@ -52,6 +52,6 @@ except Exception:
     result = -1
 os.system(f"docker compose -f {docker_compose_filename} rm -fsv")
 os.system(f"docker system prune -a -f")
-print(f"TESTING EXITED WITH CODE {result}")
 os.remove(docker_filename)
 os.remove(docker_compose_filename)
+print(f"TESTING EXITED WITH CODE {result}")

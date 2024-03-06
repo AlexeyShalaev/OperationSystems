@@ -1,8 +1,12 @@
 from dataclasses import dataclass
-from multiprocessing import Process
+from multiprocessing import Process, Manager
 import os
 
 import yaml
+
+# Создаем менеджер и словарь для хранения возвращаемых значений
+manager = Manager()
+return_dict = manager.dict()
 
 
 class Program:
@@ -16,8 +20,8 @@ class Program:
 
         def run(self, test_folder):
             cmd = f"./{self.file_path.replace('.c', '')} {' '.join([os.path.join(test_folder, arg) for arg in self.args])}"
-            print(f"Running {cmd}")
-            os.system(cmd)
+            print(f"RUNNING {cmd}")
+            return_dict[self.file_path] = os.system(cmd)
 
     def __init__(self, name: str, units: list[Unit]):
         self.name = name
@@ -36,6 +40,7 @@ class Program:
         return res
 
     def run(self, test_folder):
+        return_dict.clear()
         # Assuming self.units is a list of units
         processes = []
         for unit in self.units:
@@ -47,6 +52,12 @@ class Program:
         for process in processes:
             process.join()
 
+        for unit in self.units:
+            if return_dict[unit.file_path] != 0:
+                return 1
+
+        return 0
+
 
 @dataclass
 class Config:
@@ -55,9 +66,6 @@ class Config:
 
     @staticmethod
     def load_config(config_path: str, tests_folder_path: str = "./tests"):
-        # if not os.path.isabs(tests_folder_path):
-        #    tests_folder_path = os.path.abspath(tests_folder_path)
-
         with open(config_path, "r") as file:
             config = yaml.safe_load(file)
 
@@ -157,7 +165,6 @@ class Test:
         if program.build():
             print(f"PROGRAM {program.name} FAILED TO BUILD")
             return False
-        status = False
         print(
             f"====================== TESTING PROGRAM {program.name} ========================="
         )
@@ -166,15 +173,17 @@ class Test:
                 if "output" in file:
                     with open(os.path.join(test_case_folder_path, file), 'w') as f:
                         f.write("INIT")
-            if program.run(test_case_folder_path) == 0:
-                status = self.test()
-            else:
+
+            if program.run(test_case_folder_path) != 0:
                 print(f"PROGRAM {program.name} FAILED TO RUN")
+
+        status = self.test()
+
         print("===============================================")
         return status
 
     def run(self):
-        result = '\n\n------------------------\n'
+        result = '\n\n'
         for program in self.config.programs:
             res = self.test_program(program)
             result += f'{program.name}: {"OK" if res else "ERROR"}\n'
@@ -184,13 +193,6 @@ class Test:
 def main():
     config = Config.load_config("config.yaml")
     Test(config).run()
-    import time
-    i = 0
-    while True:
-        time.sleep(1)
-        i += 1
-        if i == 10:
-            break
 
 
 if __name__ == "__main__":

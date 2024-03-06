@@ -8,7 +8,7 @@
 
 #define BUFFER_SIZE 5000
 #define FILE_PERMISSIONS 0666
-#define DEBUG_MODE 1
+#define DEBUG_MODE 0
 
 // Определение макроса log
 #if DEBUG_MODE

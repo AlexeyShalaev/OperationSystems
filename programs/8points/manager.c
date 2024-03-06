@@ -34,10 +34,31 @@ int main(int argc, char *argv[])
     // mknod(FIFO3, S_IFIFO | 0666, 0);
 
     // Создание именованных каналов
-    if (mkfifo(FIFO1, FILE_PERMISSIONS) == -1 || mkfifo(FIFO2, FILE_PERMISSIONS) == -1 || mkfifo(FIFO3, FILE_PERMISSIONS) == -1)
+    if (access(FIFO1, F_OK) == -1)
     {
-        perror("[MANAGER]: FIFO creation error");
-        exit(EXIT_FAILURE);
+        if (mkfifo(FIFO1, FILE_PERMISSIONS) == -1)
+        {
+            perror("[MANAGER]: FIFO1 creation error");
+            exit(EXIT_FAILURE);
+        }
+    }
+
+    if (access(FIFO2, F_OK) == -1)
+    {
+        if (mkfifo(FIFO2, FILE_PERMISSIONS) == -1)
+        {
+            perror("[MANAGER]: FIFO2 creation error");
+            exit(EXIT_FAILURE);
+        }
+    }
+
+    if (access(FIFO3, F_OK) == -1)
+    {
+        if (mkfifo(FIFO3, FILE_PERMISSIONS) == -1)
+        {
+            perror("[MANAGER]: FIFO3 creation error");
+            exit(EXIT_FAILURE);
+        }
     }
 
     int fd1 = open(FIFO1, O_WRONLY);

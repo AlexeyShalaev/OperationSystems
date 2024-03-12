@@ -112,10 +112,10 @@ class Test:
             output_file1_path = os.path.join(test_case_folder, "output_1.txt")
             output_file2_path = os.path.join(test_case_folder, "output_2.txt")
 
-            with open(input_file1_path, "r") as input_file1, open(
-                input_file2_path, "r"
-            ) as input_file2, open(output_file1_path, "r") as output_file1, open(
-                output_file2_path, "r"
+            with open(input_file1_path, "r", encoding='utf8') as input_file1, open(
+                input_file2_path, "r", encoding='utf8'
+            ) as input_file2, open(output_file1_path, "r", encoding='utf8') as output_file1, open(
+                output_file2_path, "r", encoding='utf8'
             ) as output_file2:
 
                 input_data1 = set(input_file1.read().strip())
@@ -171,7 +171,7 @@ class Test:
         for test_case_folder_path in self.config.tests_folders:
             for file in os.listdir(test_case_folder_path):
                 if "output" in file:
-                    with open(os.path.join(test_case_folder_path, file), 'w') as f:
+                    with open(os.path.join(test_case_folder_path, file), 'w', encoding='utf8') as f:
                         f.write("INIT")
 
             if program.run(test_case_folder_path) != 0:
@@ -193,6 +193,16 @@ class Test:
 def main():
     config = Config.load_config("config.yaml")
     Test(config).run()
+    #Test(config).test_program(config.programs[-1])
+    #program = config.programs[-1]
+    #program.build()
+    #for test_case_folder_path in config.tests_folders:
+    #    if '6' in test_case_folder_path:
+    #        program.run(test_case_folder_path)
+    #        Test.process_test_case(test_case_folder_path)
+    #        break
+    #else:
+    #    print("TEST NOT FOUND")
 
 
 if __name__ == "__main__":

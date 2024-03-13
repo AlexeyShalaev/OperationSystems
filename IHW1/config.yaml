@@ -40,3 +40,10 @@ programs:
       - "output_1.txt"
       - "output_2.txt"
     9points/handler.c:
+  10points:
+    10points/manager.c:
+      - "input_1.txt"
+      - "input_2.txt"
+      - "output_1.txt"
+      - "output_2.txt"
+    10points/handler.c:

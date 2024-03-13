@@ -1,3 +1,4 @@
+
 from dataclasses import dataclass
 from multiprocessing import Process, Manager
 import os
@@ -165,10 +166,12 @@ class Test:
         if program.build():
             print(f"PROGRAM {program.name} FAILED TO BUILD")
             return False
+        
         print(
             f"====================== TESTING PROGRAM {program.name} ========================="
         )
-        for test_case_folder_path in self.config.tests_folders:
+        for test_case_folder_path in sorted(self.config.tests_folders):
+        
             for file in os.listdir(test_case_folder_path):
                 if "output" in file:
                     with open(os.path.join(test_case_folder_path, file), 'w', encoding='utf8') as f:
@@ -193,16 +196,6 @@ class Test:
 def main():
     config = Config.load_config("config.yaml")
     Test(config).run()
-    #Test(config).test_program(config.programs[-1])
-    #program = config.programs[-1]
-    #program.build()
-    #for test_case_folder_path in config.tests_folders:
-    #    if '6' in test_case_folder_path:
-    #        program.run(test_case_folder_path)
-    #        Test.process_test_case(test_case_folder_path)
-    #        break
-    #else:
-    #    print("TEST NOT FOUND")
 
 
 if __name__ == "__main__":

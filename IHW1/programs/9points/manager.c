@@ -191,8 +191,6 @@ int main(int argc, char *argv[])
 
     log("First process finished\n");
 
-    exit(EXIT_SUCCESS);
-
     // Удаление именованных каналов
     if (unlink(FIFO1) == -1 || unlink(FIFO2) == -1 || unlink(FIFO3) == -1)
     {

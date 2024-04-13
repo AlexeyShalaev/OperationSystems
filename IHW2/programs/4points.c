@@ -10,7 +10,7 @@
 #include <time.h>
 #include <pthread.h>
 
-int num_programmers = 3;
+#define NUMBER_OF_PROGRAMMERS 3
 
 typedef enum
 {
@@ -48,15 +48,15 @@ typedef struct
     Program program;
 } Programmer;
 
-Programmer programmers[num_programmers];
-Program *shared_queues[num_programmers];
-char *sem_names[num_programmers];
-char *shm_names[num_programmers];
-int shm_fds[num_programmers];
+Programmer programmers[NUMBER_OF_PROGRAMMERS];
+Program *shared_queues[NUMBER_OF_PROGRAMMERS];
+char *sem_names[NUMBER_OF_PROGRAMMERS];
+char *shm_names[NUMBER_OF_PROGRAMMERS];
+int shm_fds[NUMBER_OF_PROGRAMMERS];
 
 void sigint_handler(int signum)
 {
-    for (int i = 0; i < num_programmers; ++i)
+    for (int i = 0; i < NUMBER_OF_PROGRAMMERS; ++i)
     {
         // освобождение ресурсов семафора
         sem_close(programmers[i].sem);
@@ -75,9 +75,13 @@ void *programmer(void *thread_data)
     sem_t *my_sem = programmers[index].sem;
     Program *my_program = &programmers[index].program;
 
+    printf("Programmer %d initialized.\n", index);
+
     while (1)
     {
         sem_wait(my_sem); // Ожидаем своей очереди
+
+        printf("Programmer %d is working...\n", index);
 
         switch (my_program->state)
         {
@@ -86,7 +90,7 @@ void *programmer(void *thread_data)
             printf("Programmer %d is writing the program.\n", index);
             usleep(rand() % 1000000); // случайная задержка до 1 секунды
             my_program->state = CHECKING;
-            my_program->checked_by = (index + 1) % num_programmers; // Проверяется следующий по кругу программист
+            my_program->checked_by = (index + 1) % NUMBER_OF_PROGRAMMERS; // Проверяется следующий по кругу программист
             printf("Programmer %d wrote the program.\n", index);
             sem_post(programmers[my_program->checked_by].sem); // Отправляем сигнал проверяющему программисту
             break;
@@ -133,11 +137,11 @@ int main()
     signal(SIGINT, sigint_handler);
     signal(SIGTERM, sigint_handler);
 
-    pthread_t threads[num_programmers];
-    int thread_args[num_programmers];
+    pthread_t threads[NUMBER_OF_PROGRAMMERS];
+    int thread_args[NUMBER_OF_PROGRAMMERS];
 
     // Инициализация программистов
-    for (size_t i = 0; i < num_programmers; ++i)
+    for (size_t i = 0; i < NUMBER_OF_PROGRAMMERS; ++i)
     {
         sem_names[i] = get_programmer_semaphore_name(i);
         shm_names[i] = get_programmer_shared_memory_name(i);
@@ -145,6 +149,8 @@ int main()
         programmers[i].program.state = SLEEPING;
         programmers[i].program.checked_by = -1; // Никто не проверяет программу
         programmers[i].program.is_correct = 0;
+
+        printf("Initializing programmer %d...\n", i);
 
         programmers[i].sem = sem_open(sem_names[i], O_CREAT, 0666, 0); // Изначально все спят
         if (programmers[i].sem == SEM_FAILED)
@@ -172,8 +178,12 @@ int main()
         }
     }
 
-    for (size_t i = 0; i < num_programmers; ++i)
+    for (size_t i = 0; i < NUMBER_OF_PROGRAMMERS; ++i)
     {
+        // Устанавливаем начальное состояние WRITING для всех программистов
+        programmers[i].program.state = WRITING;
+        sem_post(programmers[i].sem); // Отправляем сигнал каждому программисту, чтобы он начал писать программу
+
         thread_args[i] = i;
         if (pthread_create(&threads[i], NULL, programmer, (void *)&thread_args[i]))
         {
@@ -183,7 +193,7 @@ int main()
     }
 
     // Основной поток ждет завершения всех потоков программистов
-    for (size_t i = 0; i < num_programmers; ++i)
+    for (size_t i = 0; i < NUMBER_OF_PROGRAMMERS; ++i)
     {
         if (pthread_join(threads[i], NULL))
         {

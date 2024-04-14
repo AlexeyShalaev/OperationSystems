@@ -11,6 +11,8 @@
 #include <unistd.h>
 
 #define NUMBER_OF_PROGRAMMERS 3
+#define NUMBER_OF_PROGRAMS 5
+
 #define SHARED_MEMORY "/shared_memory"
 
 #define SLEEP usleep((rand() % 3000000) + 1000000) // случайная задержка от 1 до 3 секунд
@@ -105,6 +107,8 @@ int get_programmer_to_check(Programmer *programmers, int exclude_programmer)
 
 void sigint_handler(int signum)
 {
+    log("[COWORKING] %d / %d programs created\n", coworking->created_programs_number, coworking->target_programs_number);
+
     log("Release resources\n");
     for (int i = 0; i < NUMBER_OF_PROGRAMMERS; ++i)
     {
@@ -253,7 +257,7 @@ int main()
 
     coworking = get_coworking();
     coworking->created_programs_number = 0;
-    coworking->target_programs_number = 5; // TODO: parse from args
+    coworking->target_programs_number = NUMBER_OF_PROGRAMS;
     coworking->programs_id = coworking->target_programs_number;
 
     for (int i = 0; i < NUMBER_OF_PROGRAMMERS; ++i)
@@ -290,8 +294,6 @@ int main()
             return 1;
         }
     }
-
-    log("DONE!\n");
 
     sigint_handler(0);
 

@@ -1,19 +1,15 @@
-#include <fcntl.h>
-#include <pthread.h>
-#include <semaphore.h>
-#include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <sys/mman.h>
-#include <sys/types.h>
+#include <unistd.h>
+#include <fcntl.h>
+#include <sys/sem.h>
+#include <sys/shm.h>
+#include <sys/ipc.h>
 #include <sys/wait.h>
 #include <time.h>
-#include <unistd.h>
 
 #define NUMBER_OF_PROGRAMMERS 3
 #define NUMBER_OF_PROGRAMS 5
-
-#define SHARED_MEMORY "/shared_memory"
 
 #define SLEEP usleep((rand() % 3000000) + 1000000) // случайная задержка от 1 до 3 секунд
 
@@ -25,13 +21,6 @@
 #else
 #define log(fmt, ...)
 #endif
-
-char *get_programmer_semaphore_name(int i)
-{
-    char *name = (char *)malloc(100);
-    sprintf(name, "/programmer_%d_sem", i);
-    return name;
-}
 
 int get_count_of_programmers_to_check(int *arr)
 {
@@ -62,7 +51,6 @@ typedef struct
 
 typedef struct
 {
-    sem_t *sem;
     Program program;
     int programmers_to_check[NUMBER_OF_PROGRAMMERS];
 } Programmer;
@@ -70,13 +58,18 @@ typedef struct
 typedef struct
 {
     Programmer programmers[NUMBER_OF_PROGRAMMERS];
-    char *sem_names[NUMBER_OF_PROGRAMMERS];
     int target_programs_number;
     int programs_id;
     int created_programs_number;
+    int stop_flag;
 } Coworking;
 
+int m_sems[NUMBER_OF_PROGRAMMERS];
+int shm_id;
 Coworking *coworking;
+
+struct sembuf sem_wait = {0, -1, SEM_UNDO};
+struct sembuf sem_signal = {0, 1, SEM_UNDO};
 
 int get_programmer_to_check(Programmer *programmers, int exclude_programmer)
 {
@@ -103,16 +96,17 @@ void sigint_handler(int signum)
     log("[COWORKING] %d / %d programs created\n", coworking->created_programs_number, coworking->target_programs_number);
 
     log("Release resources\n");
+
+    coworking->stop_flag = 1;
+    sleep(5);
+    shmdt(coworking);
+    shmctl(shm_id, IPC_RMID, NULL);
+
     for (int i = 0; i < NUMBER_OF_PROGRAMMERS; ++i)
     {
-        // освобождение ресурсов семафора
-        sem_close(coworking->programmers[i].sem);
-        sem_unlink(coworking->sem_names[i]);
+        semctl(m_sems[i], 0, IPC_RMID);
     }
 
-    // освобождение разделяемой памяти
-    munmap(coworking, sizeof(Coworking));
-    shm_unlink(SHARED_MEMORY);
     exit(0);
 }
 
@@ -120,24 +114,20 @@ Coworking *get_coworking()
 {
     Coworking *coworking;
 
-    int shm_fd = shm_open(SHARED_MEMORY, O_CREAT | O_RDWR, 0666);
-    if (shm_fd == -1)
+    shm_id = shmget(0x2FF, getpagesize(), 0666 | IPC_CREAT);
+    if (shm_id < 0)
     {
-        perror("shm_open");
-        return 1;
-    }
-    if (ftruncate(shm_fd, sizeof(Coworking)) == -1)
-    {
-        perror("ftruncate");
-        return 1;
+        perror("shmget()");
+        exit(1);
     }
 
-    coworking = mmap(NULL, sizeof(Coworking), PROT_READ | PROT_WRITE, MAP_SHARED, shm_fd, 0);
-    if (coworking == MAP_FAILED)
+    coworking = (Coworking *)shmat(shm_id, NULL, 0);
+    if (coworking == (Coworking *)-1)
     {
-        perror("mmap");
-        return 1;
+        perror("shmat()");
+        exit(1);
     }
+
     return coworking;
 }
 
@@ -161,11 +151,16 @@ void *programmer_work(void *thread_data)
     int inspector = get_programmer_to_check(coworking->programmers, index);
     coworking->programmers[inspector].programmers_to_check[index] = 1;
     log("[%d -> %d] sent new program (%d)\n", index, inspector, programmer->program.id);
-    sem_post(coworking->programmers[inspector].sem); // Отправляем сигнал проверяющему программисту
+    semop(index, &sem_signal, 1);
 
     while (1)
     {
-        sem_wait(programmer->sem); // Ожидаем своей очереди
+        if (coworking->stop_flag == 1)
+        {
+            break;
+        }
+
+        semop(index, &sem_wait, 1); // Ожидаем своей очереди
 
         if (coworking->created_programs_number == coworking->target_programs_number)
         {
@@ -190,7 +185,7 @@ void *programmer_work(void *thread_data)
                     coworking->programmers[surveyed].program.status = verdict ? CORRECT : INCORRECT;
                     log("[%d -> %d] sent verdict (%s) of program (%d)\n", index, surveyed, verdict ? "CORRECT" : "INCORRECT", coworking->programmers[surveyed].program.id);
                     programmer->programmers_to_check[surveyed] = 0;
-                    sem_post(coworking->programmers[surveyed].sem); // Отправляем сигнал программисту, чью работу проверили
+                    semop(surveyed, &sem_signal, 1); // Отправляем сигнал программисту, чью работу проверили
                 }
             }
         }
@@ -203,7 +198,7 @@ void *programmer_work(void *thread_data)
                 {
                     if (i != index)
                     {
-                        sem_post(coworking->programmers[i].sem); // отправляем сигнал всем, чтобы они завершились
+                        semop(i, &sem_signal, 1); // отправляем сигнал всем, чтобы они завершились
                     }
                 }
                 break; // все программы созданы
@@ -221,7 +216,7 @@ void *programmer_work(void *thread_data)
             inspector = get_programmer_to_check(coworking->programmers, index);
             log("[%d -> %d] sent new program (%d)\n", index, inspector, programmer->program.id);
             coworking->programmers[inspector].programmers_to_check[index] = 1;
-            sem_post(coworking->programmers[inspector].sem); // отправляем на проверку
+            semop(inspector, &sem_signal, 1); // отправляем на проверку
         }
         else if (programmer->program.status == INCORRECT)
         {
@@ -229,7 +224,7 @@ void *programmer_work(void *thread_data)
             programmer->program.status = WRITTEN;
             coworking->programmers[inspector].programmers_to_check[index] = 1;
             log("[%d -> %d] sent fixed program (%d)\n", index, inspector, programmer->program.id);
-            sem_post(coworking->programmers[inspector].sem); // отправляем на проверку
+            semop(inspector, &sem_signal, 1); // отправляем на проверку
         }
     }
 
@@ -240,6 +235,7 @@ void *programmer_work(void *thread_data)
 
 int main()
 {
+    sleep(5);
     srand(time(NULL));
 
     signal(SIGINT, sigint_handler);
@@ -249,21 +245,12 @@ int main()
     int thread_args[NUMBER_OF_PROGRAMMERS];
 
     coworking = get_coworking();
-    coworking->created_programs_number = 0;
-    coworking->target_programs_number = NUMBER_OF_PROGRAMS;
-    coworking->programs_id = coworking->target_programs_number;
 
     for (int i = 0; i < NUMBER_OF_PROGRAMMERS; ++i)
     {
-        coworking->sem_names[i] = get_programmer_semaphore_name(i);
-
-        log("Initializing programmer %d...\n", i);
-
-        coworking->programmers[i].program.status = NOT_EXISTING;
-        coworking->programmers[i].sem = sem_open(coworking->sem_names[i], O_CREAT, 0666, 0);
-        if (coworking->programmers[i].sem == SEM_FAILED)
+        if ((m_sems[i] = semget(i, 1, IPC_CREAT | 0666)) == -1)
         {
-            perror("Error sem_open");
+            perror("Error sem get");
             return 1;
         }
     }

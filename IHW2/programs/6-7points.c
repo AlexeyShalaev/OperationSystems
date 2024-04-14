@@ -26,20 +26,6 @@
 #define log(fmt, ...)
 #endif
 
-/*
- Пул программистов - циклический массив.
- На проверку посылаем следующему в цепочке.
- Т.е. нашу проверяет (index + 1) % NUMBER_OF_PROGRAMMERS
- А мы проверяем (index - 1 + NUMBER_OF_PROGRAMMERS) % NUMBER_OF_PROGRAMMERS.
-*/
-
-char *get_programmer_semaphore_name(int i)
-{
-    char *name = (char *)malloc(100);
-    sprintf(name, "/programmer_%d_sem", i);
-    return name;
-}
-
 int get_count_of_programmers_to_check(int *arr)
 {
     int count = 0;
@@ -69,7 +55,7 @@ typedef struct
 
 typedef struct
 {
-    sem_t *sem;
+    sem_t sem;
     Program program;
     int programmers_to_check[NUMBER_OF_PROGRAMMERS];
 } Programmer;
@@ -77,7 +63,6 @@ typedef struct
 typedef struct
 {
     Programmer programmers[NUMBER_OF_PROGRAMMERS];
-    char *sem_names[NUMBER_OF_PROGRAMMERS];
     int target_programs_number;
     int programs_id;
     int created_programs_number;
@@ -113,8 +98,7 @@ void sigint_handler(int signum)
     for (int i = 0; i < NUMBER_OF_PROGRAMMERS; ++i)
     {
         // освобождение ресурсов семафора
-        sem_close(coworking->programmers[i].sem);
-        sem_unlink(coworking->sem_names[i]);
+        sem_destroy(&coworking->programmers[i].sem);
     }
 
     // освобождение разделяемой памяти
@@ -168,11 +152,11 @@ void *programmer_work(void *thread_data)
     int inspector = get_programmer_to_check(coworking->programmers, index);
     coworking->programmers[inspector].programmers_to_check[index] = 1;
     log("[%d -> %d] sent new program (%d)\n", index, inspector, programmer->program.id);
-    sem_post(coworking->programmers[inspector].sem); // Отправляем сигнал проверяющему программисту
+    sem_post(&coworking->programmers[inspector].sem); // Отправляем сигнал проверяющему программисту
 
     while (1)
     {
-        sem_wait(programmer->sem); // Ожидаем своей очереди
+        sem_wait(&programmer->sem); // Ожидаем своей очереди
 
         if (coworking->created_programs_number == coworking->target_programs_number)
         {
@@ -197,7 +181,7 @@ void *programmer_work(void *thread_data)
                     coworking->programmers[surveyed].program.status = verdict ? CORRECT : INCORRECT;
                     log("[%d -> %d] sent verdict (%s) of program (%d)\n", index, surveyed, verdict ? "CORRECT" : "INCORRECT", coworking->programmers[surveyed].program.id);
                     programmer->programmers_to_check[surveyed] = 0;
-                    sem_post(coworking->programmers[surveyed].sem); // Отправляем сигнал программисту, чью работу проверили
+                    sem_post(&coworking->programmers[surveyed].sem); // Отправляем сигнал программисту, чью работу проверили
                 }
             }
         }
@@ -210,7 +194,7 @@ void *programmer_work(void *thread_data)
                 {
                     if (i != index)
                     {
-                        sem_post(coworking->programmers[i].sem); // отправляем сигнал всем, чтобы они завершились
+                        sem_post(&coworking->programmers[i].sem); // отправляем сигнал всем, чтобы они завершились
                     }
                 }
                 break; // все программы созданы
@@ -228,7 +212,7 @@ void *programmer_work(void *thread_data)
             inspector = get_programmer_to_check(coworking->programmers, index);
             log("[%d -> %d] sent new program (%d)\n", index, inspector, programmer->program.id);
             coworking->programmers[inspector].programmers_to_check[index] = 1;
-            sem_post(coworking->programmers[inspector].sem); // отправляем на проверку
+            sem_post(&coworking->programmers[inspector].sem); // отправляем на проверку
         }
         else if (programmer->program.status == INCORRECT)
         {
@@ -236,7 +220,7 @@ void *programmer_work(void *thread_data)
             programmer->program.status = WRITTEN;
             coworking->programmers[inspector].programmers_to_check[index] = 1;
             log("[%d -> %d] sent fixed program (%d)\n", index, inspector, programmer->program.id);
-            sem_post(coworking->programmers[inspector].sem); // отправляем на проверку
+            sem_post(&coworking->programmers[inspector].sem); // отправляем на проверку
         }
     }
 
@@ -262,13 +246,11 @@ int main()
 
     for (int i = 0; i < NUMBER_OF_PROGRAMMERS; ++i)
     {
-        coworking->sem_names[i] = get_programmer_semaphore_name(i);
-
+        
         log("Initializing programmer %d...\n", i);
 
         coworking->programmers[i].program.status = NOT_EXISTING;
-        coworking->programmers[i].sem = sem_open(coworking->sem_names[i], O_CREAT, 0666, 0);
-        if (coworking->programmers[i].sem == SEM_FAILED)
+        if (sem_init(&coworking->programmers[i].sem, 1, 0) == -1)
         {
             perror("Error sem_open");
             return 1;

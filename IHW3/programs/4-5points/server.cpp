@@ -21,7 +21,7 @@ public:
     {
         for (int i = 0; i < tasks_number; ++i)
         {
-            tasks.push(Task(generate_random_string(), generate_random_number(1, 10)));
+            tasks.push(Task(generate_random_string()));
         }
     }
 
@@ -116,7 +116,7 @@ public:
         programmers[programmer_id].checking_tasks.pop();
 
         Programmer programmer = programmers[task.programmer_id]; // программист который делал задачу
-        if (result_str == "OK")
+        if (result_str == "CORRECT")
         {
             // Задача выполнена успешно
         }
@@ -154,14 +154,6 @@ private:
         std::mt19937 generator(rd());
         std::shuffle(str.begin(), str.end(), generator);
         return str.substr(0, length);
-    }
-
-    int generate_random_number(int min, int max)
-    {
-        std::random_device rd;
-        std::mt19937 generator(rd());
-        std::uniform_int_distribution<int> distribution(min, max);
-        return distribution(generator);
     }
 };
 

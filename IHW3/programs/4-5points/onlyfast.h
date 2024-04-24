@@ -236,7 +236,7 @@ namespace onlyfast
             {
             }
 
-            std::string SendRequest(const std::string &request_body)
+            Response SendRequest(const std::string &request_body)
             {
                 int sock = socket(PF_INET, SOCK_STREAM, 0);
                 if (sock == -1)
@@ -270,9 +270,15 @@ namespace onlyfast
 
                 close(sock);
 
-                std::string response(buffer, bytes_read);
+                std::string response_body(buffer, bytes_read);
 
-                logger << "Received response: " << response << "\n";
+                logger << "Received response: " << response_body << "\n";
+
+                size_t pos = response_body.find(':');
+                std::string status = response_body.substr(0, pos);
+                std::string body = response_body.substr(pos + 1);
+
+                Response response{ConvertStringStatusToResponseString(status), body};
 
                 return response;
             }
@@ -291,6 +297,22 @@ namespace onlyfast
                 addr.sin_addr.s_addr = inet_addr(ip.c_str());
                 addr.sin_port = htons(port);
                 return addr;
+            }
+
+            ResponseStatus ConvertStringStatusToResponseString(std::string status)
+            {
+                if (status == "OK")
+                {
+                    return ResponseStatus::OK;
+                }
+                else if (status == "FAILED")
+                {
+                    return ResponseStatus::FAILED;
+                }
+                else
+                {
+                    return ResponseStatus::FAILED;
+                }
             }
         };
     }

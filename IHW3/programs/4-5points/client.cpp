@@ -1,18 +1,17 @@
 #include <iostream>
 #include <string>
 
-#include "network.h"
+#include "onlyfast.h"
 
 int main()
 {
-    // Пример использования:
-    Network::Client client;
-    while (true)
-    {
-        std::string resp = client.SendRequest("Hello, server!");
-        std::cout << "Server response: " << resp << std::endl;
-        sleep(3);
-    }
+    onlyfast::network::Client client;
+
+    std::string resp = client.SendRequest("ECHO:HelloWorld!");
+    std::cout << "Server response: " << resp << std::endl;
+    sleep(3);
+    resp = client.SendRequest("TEST:HelloWorld!");
+    std::cout << "Server response: " << resp << std::endl;
 
     return 0;
 }

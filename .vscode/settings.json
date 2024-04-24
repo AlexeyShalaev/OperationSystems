@@ -57,5 +57,8 @@
         "xhash": "cpp",
         "optional": "cpp",
         "sstream": "cpp"
-    }
+    },
+    "cSpell.words": [
+        "onlyfast"
+    ]
 }

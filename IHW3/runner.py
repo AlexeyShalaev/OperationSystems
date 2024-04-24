@@ -14,13 +14,17 @@ for line in logs:
     print(line)
 
 # Запуск контейнера из собранного образа
-container = client.containers.run(image, detach=True, remove=True, name='app')
+container = client.containers.run(image, detach=True, name='app')
+
+print(container.status)
 
 # Ожидание выполнения контейнера
 s = input('Press any key to stop container')
 
 # Удаление контейнера
+print('Removing container...')
 container.remove()
 
 # Удаление образа
+print('Removing image...')
 client.images.remove(image.id)

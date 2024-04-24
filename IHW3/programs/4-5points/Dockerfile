@@ -10,12 +10,12 @@ RUN apk add libgcc
 WORKDIR /app
 
 # Копируем исходные файлы программы в контейнер
-COPY *.cpp .
-COPY *.h .
+COPY *.cpp ./
+COPY *.h ./
 
 # Компилируем программы
 RUN g++ -o server server.cpp
 RUN g++ -o client client.cpp
 
-CMD ["sh"]
-
+#CMD ["sh"]
+CMD sleep 1000000

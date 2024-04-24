@@ -75,10 +75,10 @@ namespace onlyfast
                    int max_clients = 10,
                    RequestHandlerType handler = Server::DefaultRequestHandler,
                    bool debug = true) : serv_sock(CreateSocket(ip, port)),
-                                         buffer_size(buffer_size),
-                                         request_handler(std::move(handler)),
-                                         debug(debug),
-                                         logger(std::cout, debug)
+                                        buffer_size(buffer_size),
+                                        request_handler(std::move(handler)),
+                                        debug(debug) //,
+                                                     // logger(std::cout, debug)
 
             {
                 if (listen(serv_sock, max_clients) == -1)
@@ -87,7 +87,7 @@ namespace onlyfast
                     exit(EXIT_FAILURE);
                 }
 
-                logger << "Server started at " << ip << ":" << port << "\n";
+                // logger << "Server started at " << ip << ":" << port << "\n";
             }
 
             ~Server()
@@ -110,12 +110,12 @@ namespace onlyfast
             int serv_sock;
             RequestHandlerType request_handler;
             bool debug;
-            logger::Logger logger;
+            // logger::Logger logger;
 
             // Функции для работы с сокетами
             int CreateSocket(const std::string &ip, int port)
             {
-                logger << "Creating socket...\n";
+                // logger << "Creating socket...\n";
                 int sock = socket(PF_INET, SOCK_STREAM, 0);
                 if (sock == -1)
                 {
@@ -134,7 +134,7 @@ namespace onlyfast
                     perror("bind() error");
                     exit(EXIT_FAILURE);
                 }
-                logger << "Socket created successfully\n";
+                // logger << "Socket created successfully\n";
                 return sock;
             }
 
@@ -162,7 +162,7 @@ namespace onlyfast
                     }
                     catch (const std::exception &e)
                     {
-                        logger << "Caught exception: " << e.what() << '\n';
+                        // logger << "Caught exception: " << e.what() << '\n';
                     }
                 }
             }
@@ -179,7 +179,7 @@ namespace onlyfast
 
                 Request request;
                 request.body = std::string(buffer, bytes_read);
-                logger << "Received request: " << request.body << "\n";
+                // logger << "Received request: " << request.body << "\n";
                 return request;
             }
 
@@ -193,7 +193,7 @@ namespace onlyfast
                 {
                     perror("write() error");
                 }
-                logger << "Sent response: " << buffer << "\n";
+                // logger << "Sent response: " << buffer << "\n";
             }
 
             static void CloseSocket(int sock)
@@ -230,9 +230,9 @@ namespace onlyfast
                    int port = 80,
                    int buffer_size = 1024,
                    bool debug = true) : serv_addr(CreateSocketAddress(ip, port)),
-                                         buffer_size(buffer_size),
-                                         debug(debug),
-                                         logger(std::cout, debug)
+                                        buffer_size(buffer_size),
+                                        debug(debug) //,
+                                                     // logger(std::cout, debug)
             {
             }
 
@@ -258,7 +258,7 @@ namespace onlyfast
                     exit(EXIT_FAILURE);
                 }
 
-                logger << "Sent request: " << request_body << "\n";
+                // logger << "Sent request: " << request_body << "\n";
 
                 char buffer[buffer_size];
                 ssize_t bytes_read = read(sock, buffer, buffer_size);
@@ -272,7 +272,7 @@ namespace onlyfast
 
                 std::string response(buffer, bytes_read);
 
-                logger << "Received response: " << response << "\n";
+                // logger << "Received response: " << response << "\n";
 
                 return response;
             }
@@ -281,7 +281,7 @@ namespace onlyfast
             struct sockaddr_in serv_addr;
             int buffer_size;
             bool debug;
-            logger::Logger logger;
+            // logger::Logger logger;
 
             struct sockaddr_in CreateSocketAddress(const std::string &ip, int port)
             {
@@ -301,7 +301,7 @@ namespace onlyfast
         using Params = std::vector<std::string>;
         using AppHandlerType = std::function<network::Response(const Params &params)>;
 
-        Application(network::Server server) : server(server)
+        Application(network::Server &server) : server(server)
         {
             server.SetRequestHandler([this](const network::Request &request)
                                      { return this->RequestHandler(request); });
@@ -336,7 +336,7 @@ namespace onlyfast
         }
 
     private:
-        network::Server server;
+        network::Server &server;
         std::map<std::string, AppHandlerType> handlers;
 
         struct RequestData

@@ -21,8 +21,8 @@ onlyfast::network::Response echo_handler(const onlyfast::Application::Params &pa
 int main()
 {
     onlyfast::network::Server server;
-    // onlyfast::Application app(server);
-    // app.RegisterHandler("ECHO", echo_handler);
-    // app.Run();
+    onlyfast::Application app(server);
+    app.RegisterHandler("ECHO", echo_handler);
+    app.Run();
     return 0;
 }

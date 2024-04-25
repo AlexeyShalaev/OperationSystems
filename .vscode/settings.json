@@ -73,7 +73,8 @@
         "xlocmon": "cpp",
         "xloctime": "cpp",
         "variant": "cpp",
-        "any": "cpp"
+        "any": "cpp",
+        "set": "cpp"
     },
     "cSpell.words": [
         "onlyfast"

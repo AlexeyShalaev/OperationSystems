@@ -19,7 +19,7 @@ class Solution
 public:
     using Id = int;
 
-    Solution(int tasks_number = 3)
+    Solution(int tasks_number = 10)
     {
         for (int i = 0; i < tasks_number; ++i)
         {
@@ -301,9 +301,28 @@ onlyfast::network::Response send_check_result_handler(const onlyfast::Applicatio
     return {onlyfast::network::ResponseStatus::OK, "OK"};
 }
 
-int main()
+int main(int argc, char **argv)
 {
-    onlyfast::network::Server server;
+    onlyfast::Arguments args;
+    args.AddArgument("tasks_number", onlyfast::Arguments::ArgType::INT, "Number of tasks");
+    args.AddArgument("host", onlyfast::Arguments::ArgType::STRING, "Host to listen on");
+    args.AddArgument("port", onlyfast::Arguments::ArgType::INT, "Port to listen on");
+    args.AddArgument("buffer_size", onlyfast::Arguments::ArgType::INT, "Buffer size");
+    args.AddArgument("max_clients", onlyfast::Arguments::ArgType::INT, "Maximum number of connected clients");
+    args.AddArgument("debug", onlyfast::Arguments::ArgType::BOOL, "Debug mode");
+    if (!args.Parse(argc, argv))
+    {
+        return 0;
+    }
+
+    auto tasks_number = args.GetInt("tasks_number", 10);
+    auto host = args.Get("host", "127.0.0.1");
+    auto port = args.GetInt("port", 80);
+    auto buffer_size = args.GetInt("buffer_size", 1024);
+    auto max_clients = args.GetInt("max_clients", 10);
+    auto debug = args.GetInt("debug", false);
+
+    onlyfast::network::Server server(host, port, buffer_size, max_clients, onlyfast::network::Server::DefaultRequestHandler, debug);
     server.SetMiddleware([&](int clnt_sock, const onlyfast::network::Request &request)
                          { solution.middleware(clnt_sock, request); });
     onlyfast::Application app(server);

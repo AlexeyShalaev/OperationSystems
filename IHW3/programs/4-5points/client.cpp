@@ -106,7 +106,7 @@ void *programmer_work(void *arg)
 
 int main()
 {
-    int number_of_programmers = 2;
+    int number_of_programmers = 10;
     pthread_t threads[number_of_programmers];
     for (int i = 0; i < number_of_programmers; ++i)
     {

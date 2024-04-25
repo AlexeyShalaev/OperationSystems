@@ -4,7 +4,10 @@
 #include <string>
 #include <functional>
 #include <map>
+#include <unordered_map>
 #include <vector>
+#include <optional>
+
 #include <unistd.h>
 #include <sstream>
 #include <stdexcept>
@@ -110,6 +113,14 @@ namespace onlyfast
                 this->middleware = middleware;
             }
 
+            static Response DefaultRequestHandler(const Request &request)
+            {
+                Response response;
+                response.status = ResponseStatus::OK;
+                response.body = request.body;
+                return response;
+            }
+
         private:
             int buffer_size;
             int serv_sock;
@@ -209,14 +220,6 @@ namespace onlyfast
             static void CloseSocket(int sock)
             {
                 close(sock);
-            }
-
-            static Response DefaultRequestHandler(const Request &request)
-            {
-                Response response;
-                response.status = ResponseStatus::OK;
-                response.body = request.body;
-                return response;
             }
 
             std::string ConvertResponseStatusToString(ResponseStatus status)
@@ -392,4 +395,169 @@ namespace onlyfast
             }
         };
     };
+
+    class Arguments
+    {
+    public:
+        enum class ArgType
+        {
+            STRING,
+            INT,
+            DOUBLE,
+            BOOL
+        };
+
+        struct ArgData
+        {
+            ArgType type;
+            std::string value;
+            std::optional<std::string> description;
+        };
+
+        void
+        AddArgument(const std::string &key, ArgType type, std::optional<std::string> description = std::nullopt)
+        {
+            args[key] = {.type = type, .description = description};
+        }
+
+        bool Parse(int argc, char **argv)
+        {
+            for (int i = 0; i < argc; ++i)
+            {
+                if (IsKey(argv[i]))
+                {
+                    auto key = GetKey(argv[i]);
+                    if (args.find(key) == args.end())
+                    {
+
+                        Help();
+
+                        return false;
+                    }
+
+                    if (i + 1 < argc && !IsKey(argv[i + 1]))
+                    {
+
+                        args[key].value = argv[i + 1];
+                    }
+                    else
+                    {
+                        args[key].value = "true"; // flag, e.g. -v
+                    }
+                }
+            }
+            return true;
+        }
+
+        std::string Get(const std::string &key, std::optional<std::string> default_value = std::nullopt)
+        {
+            if (args.find(key) == args.end())
+            {
+                if (default_value.has_value())
+                {
+                    return default_value.value();
+                }
+                throw std::runtime_error("Unknown argument");
+            }
+            auto arg = args[key];
+            if (arg.type != ArgType::STRING)
+            {
+                if (default_value.has_value())
+                {
+                    return default_value.value();
+                }
+                throw std::runtime_error("Invalid argument type");
+            }
+            return arg.value;
+        }
+
+        bool GetBool(const std::string &key, std::optional<bool> default_value = std::nullopt)
+        {
+            if (args.find(key) == args.end())
+            {
+                if (default_value.has_value())
+                {
+                    return default_value.value();
+                }
+                throw std::runtime_error("Unknown argument");
+            }
+            auto arg = args[key];
+            if (arg.type != ArgType::BOOL)
+            {
+                if (default_value.has_value())
+                {
+                    return default_value.value();
+                }
+                throw std::runtime_error("Invalid argument type");
+            }
+            return arg.value == "true";
+        }
+
+        int GetInt(const std::string &key, std::optional<int> default_value = std::nullopt)
+        {
+            if (args.find(key) == args.end())
+            {
+                if (default_value.has_value())
+                {
+                    return default_value.value();
+                }
+                throw std::runtime_error("Unknown argument");
+            }
+            auto arg = args[key];
+            if (arg.type != ArgType::INT)
+            {
+                if (default_value.has_value())
+                {
+                    return default_value.value();
+                }
+                throw std::runtime_error("Invalid argument type");
+            }
+            return std::stoi(arg.value);
+        }
+
+        double GetDouble(const std::string &key, std::optional<double> default_value = std::nullopt)
+        {
+            if (args.find(key) == args.end())
+            {
+                if (default_value.has_value())
+                {
+                    return default_value.value();
+                }
+                throw std::runtime_error("Unknown argument");
+            }
+            auto arg = args[key];
+            if (arg.type != ArgType::DOUBLE)
+            {
+                if (default_value.has_value())
+                {
+                    return default_value.value();
+                }
+                throw std::runtime_error("Invalid argument type");
+            }
+            return std::stod(arg.value);
+        }
+
+    private:
+        std::unordered_map<std::string, ArgData> args;
+
+        bool IsKey(const std::string &arg)
+        {
+            return arg[0] == '-';
+        }
+
+        std::string GetKey(const std::string &arg)
+        {
+            return arg.substr(arg.find_first_not_of('-'));
+        }
+
+        void Help()
+        {
+            std::cout << "Usage: " << std::endl;
+            for (const auto &[key, value] : args)
+            {
+                std::cout << key << " - " << value.description.value_or("No description") << std::endl;
+            }
+        }
+    };
+
 }

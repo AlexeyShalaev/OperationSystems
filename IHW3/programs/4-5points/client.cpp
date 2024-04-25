@@ -13,6 +13,8 @@
 CMD:PARAM_1;PARAM_2;PARAM_3
 */
 
+onlyfast::Arguments args;
+
 std::string generate_random_string(size_t length = 10)
 {
     std::string str("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz");
@@ -49,7 +51,12 @@ std::vector<std::string> parse_params(std::string request)
 
 void *programmer_work(void *arg)
 {
-    onlyfast::network::Client client;
+    auto host = args.Get("host", "127.0.0.1");
+    auto port = args.GetInt("port", 80);
+    auto buffer_size = args.GetInt("buffer_size", 1024);
+    auto debug = args.GetBool("debug", false);
+    onlyfast::network::Client client(host, port, buffer_size, debug);
+
     std::vector<std::string> data;
 
     auto resp = client.SendRequest("REG_PROG:" + generate_random_string(4));
@@ -70,16 +77,16 @@ void *programmer_work(void *arg)
             return 0;
         }
 
-        std::cout << resp.body << std::endl;
-
         if (resp.body == "no tasks")
         {
-            std::cout << "no tasks" << std::endl;
+            std::cout << "[" << programmer_id << "] "
+                      << "no tasks" << std::endl;
             break;
         }
         else if (resp.body == "wait")
         {
-            std::cout << "Wait for check" << std::endl;
+            std::cout << "[" << programmer_id << "] "
+                      << "Wait for check" << std::endl;
             std::this_thread::sleep_for(std::chrono::seconds(1));
             continue;
         }
@@ -106,14 +113,27 @@ void *programmer_work(void *arg)
         client.SendRequest("SEND_ON_CHECK:" + programmer_id + ";" + data[1]);            // отправляем программу на проверку
     }
 
+    std::cout << "Programmer " << programmer_id << " finished work" << std::endl;
+
     pthread_exit(NULL);
 }
 
-int main()
+int main(int argc, char **argv)
 {
-    int number_of_programmers = 10;
-    pthread_t threads[number_of_programmers];
-    for (int i = 0; i < number_of_programmers; ++i)
+    args.AddArgument("programmers_number", onlyfast::Arguments::ArgType::INT, "Number of programmers", "3");
+    args.AddArgument("host", onlyfast::Arguments::ArgType::STRING, "Host to listen on", "127.0.0.1");
+    args.AddArgument("port", onlyfast::Arguments::ArgType::INT, "Port to listen on", "80");
+    args.AddArgument("buffer_size", onlyfast::Arguments::ArgType::INT, "Buffer size", "1024");
+    args.AddArgument("debug", onlyfast::Arguments::ArgType::BOOL, "Debug mode", "false");
+    if (!args.Parse(argc, argv))
+    {
+        return 0;
+    }
+
+    auto programmers_number = args.GetInt("programmers_number", 3);
+
+    pthread_t threads[programmers_number];
+    for (int i = 0; i < programmers_number; ++i)
     {
         if (pthread_create(&threads[i], NULL, programmer_work, NULL))
         {
@@ -122,7 +142,7 @@ int main()
         }
     }
 
-    for (int i = 0; i < number_of_programmers; ++i)
+    for (int i = 0; i < programmers_number; ++i)
     {
         if (pthread_join(threads[i], NULL))
         {

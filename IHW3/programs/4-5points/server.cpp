@@ -112,7 +112,6 @@ public:
         }
         TaskPtr task = tasks.front();
         tasks.pop_front();
-        std::cout << "!!!!! " << task->id << std::endl;
         task->programmer_id = id;
         programmers[id].working_tasks.push_back(task);
         std::cout << "Programmer " << id << " is working on task " << task->id << std::endl;

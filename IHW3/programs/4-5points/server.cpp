@@ -304,12 +304,12 @@ onlyfast::network::Response send_check_result_handler(const onlyfast::Applicatio
 int main(int argc, char **argv)
 {
     onlyfast::Arguments args;
-    args.AddArgument("tasks_number", onlyfast::Arguments::ArgType::INT, "Number of tasks");
-    args.AddArgument("host", onlyfast::Arguments::ArgType::STRING, "Host to listen on");
-    args.AddArgument("port", onlyfast::Arguments::ArgType::INT, "Port to listen on");
-    args.AddArgument("buffer_size", onlyfast::Arguments::ArgType::INT, "Buffer size");
-    args.AddArgument("max_clients", onlyfast::Arguments::ArgType::INT, "Maximum number of connected clients");
-    args.AddArgument("debug", onlyfast::Arguments::ArgType::BOOL, "Debug mode");
+    args.AddArgument("tasks_number", onlyfast::Arguments::ArgType::INT, "Number of tasks", "10");
+    args.AddArgument("host", onlyfast::Arguments::ArgType::STRING, "Host to listen on", "127.0.0.1");
+    args.AddArgument("port", onlyfast::Arguments::ArgType::INT, "Port to listen on", "80");
+    args.AddArgument("buffer_size", onlyfast::Arguments::ArgType::INT, "Buffer size", "1024");
+    args.AddArgument("max_clients", onlyfast::Arguments::ArgType::INT, "Maximum number of connected clients", "10");
+    args.AddArgument("debug", onlyfast::Arguments::ArgType::BOOL, "Debug mode", "false");
     if (!args.Parse(argc, argv))
     {
         return 0;
@@ -320,11 +320,12 @@ int main(int argc, char **argv)
     auto port = args.GetInt("port", 80);
     auto buffer_size = args.GetInt("buffer_size", 1024);
     auto max_clients = args.GetInt("max_clients", 10);
-    auto debug = args.GetInt("debug", false);
+    auto debug = args.GetBool("debug", false);
 
     onlyfast::network::Server server(host, port, buffer_size, max_clients, onlyfast::network::Server::DefaultRequestHandler, debug);
     server.SetMiddleware([&](int clnt_sock, const onlyfast::network::Request &request)
                          { solution.middleware(clnt_sock, request); });
+
     onlyfast::Application app(server);
     app.RegisterHandler("ECHO", echo_handler);
     app.RegisterHandler("REG_PROG", register_programmer_handler);        // Регистрация программиста
@@ -332,5 +333,6 @@ int main(int argc, char **argv)
     app.RegisterHandler("SEND_ON_CHECK", send_on_check_handler);         // Отправить задачу на проверку
     app.RegisterHandler("SEND_CHECK_RESULT", send_check_result_handler); // Возвратить результат проверки
     app.Run();
+
     return 0;
 }

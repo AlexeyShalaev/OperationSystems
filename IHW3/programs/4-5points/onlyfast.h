@@ -410,14 +410,14 @@ namespace onlyfast
         struct ArgData
         {
             ArgType type;
-            std::string value;
+            std::optional<std::string> value;
             std::optional<std::string> description;
         };
 
         void
-        AddArgument(const std::string &key, ArgType type, std::optional<std::string> description = std::nullopt)
+        AddArgument(const std::string &key, ArgType type, std::optional<std::string> description = std::nullopt, std::optional<std::string> default_value = std::nullopt)
         {
-            args[key] = {.type = type, .description = description};
+            args[key] = {.type = type, .value = default_value, .description = description};
         }
 
         bool Parse(int argc, char **argv)
@@ -429,9 +429,7 @@ namespace onlyfast
                     auto key = GetKey(argv[i]);
                     if (args.find(key) == args.end())
                     {
-
                         Help();
-
                         return false;
                     }
 
@@ -442,6 +440,11 @@ namespace onlyfast
                     }
                     else
                     {
+                        if (key == "help")
+                        {
+                            Help();
+                            return false;
+                        }
                         args[key].value = "true"; // flag, e.g. -v
                     }
                 }
@@ -462,13 +465,13 @@ namespace onlyfast
             auto arg = args[key];
             if (arg.type != ArgType::STRING)
             {
-                if (default_value.has_value())
+                if (arg.value.has_value())
                 {
-                    return default_value.value();
+                    return arg.value.value();
                 }
                 throw std::runtime_error("Invalid argument type");
             }
-            return arg.value;
+            return arg.value.value();
         }
 
         bool GetBool(const std::string &key, std::optional<bool> default_value = std::nullopt)
@@ -484,13 +487,13 @@ namespace onlyfast
             auto arg = args[key];
             if (arg.type != ArgType::BOOL)
             {
-                if (default_value.has_value())
+                if (arg.value.has_value())
                 {
-                    return default_value.value();
+                    return arg.value.value() == "true";
                 }
                 throw std::runtime_error("Invalid argument type");
             }
-            return arg.value == "true";
+            return arg.value.value() == "true";
         }
 
         int GetInt(const std::string &key, std::optional<int> default_value = std::nullopt)
@@ -506,13 +509,24 @@ namespace onlyfast
             auto arg = args[key];
             if (arg.type != ArgType::INT)
             {
+                if (arg.value.has_value())
+                {
+                    return std::stoi(arg.value.value());
+                }
+                throw std::runtime_error("Invalid argument type");
+            }
+            try
+            {
+                return std::stoi(arg.value.value());
+            }
+            catch (std::exception &e)
+            {
                 if (default_value.has_value())
                 {
                     return default_value.value();
                 }
-                throw std::runtime_error("Invalid argument type");
+                throw std::runtime_error("Invalid argument value");
             }
-            return std::stoi(arg.value);
         }
 
         double GetDouble(const std::string &key, std::optional<double> default_value = std::nullopt)
@@ -528,13 +542,24 @@ namespace onlyfast
             auto arg = args[key];
             if (arg.type != ArgType::DOUBLE)
             {
+                if (arg.value.has_value())
+                {
+                    return std::stod(arg.value.value());
+                }
+                throw std::runtime_error("Invalid argument type");
+            }
+            try
+            {
+                return std::stod(arg.value.value());
+            }
+            catch (std::exception &e)
+            {
                 if (default_value.has_value())
                 {
                     return default_value.value();
                 }
-                throw std::runtime_error("Invalid argument type");
+                throw std::runtime_error("Invalid argument value");
             }
-            return std::stod(arg.value);
         }
 
     private:

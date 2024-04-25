@@ -16,6 +16,7 @@ COPY *.h ./
 # Компилируем программы
 RUN g++ -o server server.cpp
 RUN g++ -o client client.cpp
+RUN g++ -o monitor monitor.cpp
 
 #CMD ["sh"]
 CMD sleep 1000000

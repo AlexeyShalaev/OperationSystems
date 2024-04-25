@@ -247,10 +247,10 @@ private:
     }
 };
 
-class Monitor
+class MonitorBroker
 {
 public:
-    Monitor() = default;
+    MonitorBroker() = default;
     void subscribe(int clnt_sock)
     {
         clnt_sockets.insert(clnt_sock);
@@ -263,7 +263,7 @@ public:
 
     void notify(std::string message)
     {
-        onlyfast::network::Response response{.status = ResponseStatus::OK, .body = message};
+        onlyfast::network::Response response{.status = onlyfast::network::ResponseStatus::OK, .body = message};
         for (auto clnt_sock : clnt_sockets)
         {
             onlyfast::network::Server::SendResponse(clnt_sock, response);
@@ -279,7 +279,7 @@ Solution::Id Solution::Programmer::auto_inc = 0;
 Solution::Id Solution::Task::auto_inc = 0;
 
 Solution solution;
-Monitor monitor;
+MonitorBroker monitorBroker;
 
 onlyfast::network::Response echo_handler(const onlyfast::Application::RequestData &rd)
 {
@@ -329,13 +329,13 @@ onlyfast::network::Response send_check_result_handler(const onlyfast::Applicatio
     return {onlyfast::network::ResponseStatus::OK, "OK"};
 }
 
-onlyfast::network::Response subscribe_monitor_handler(const onlyfast::Application::RequestData &rd)
+onlyfast::network::Response subscribe_monitor_broker_handler(const onlyfast::Application::RequestData &rd)
 {
-    if (params.empty())
+    if (rd.params.empty())
     {
         return {onlyfast::network::ResponseStatus::FAILED, "No parameters"};
-    }
-    monitor.subscribe(rd.clnt_sock);
+    } // todo: delete
+    monitorBroker.subscribe(rd.clnt_sock);
     return {onlyfast::network::ResponseStatus::OK, "OK"};
 }
 
@@ -359,11 +359,10 @@ int main(int argc, char **argv)
     auto buffer_size = args.GetInt("buffer_size", 1024);
     auto max_clients = args.GetInt("max_clients", 10);
     auto debug = args.GetBool("debug", false);
-  
+
     onlyfast::network::Server server(host, port, buffer_size, max_clients, onlyfast::network::Server::DefaultRequestHandler, debug);
-    server.SetMiddleware([&](const onlyfast::network::Request &request) {
-        monitor.notify(request.ip);
-    });
+    server.SetMiddleware([&](const onlyfast::network::Request &request)
+                         { monitorBroker.notify(request.ip); });
 
     onlyfast::Application app(server);
     app.RegisterHandler("ECHO", echo_handler);
@@ -371,7 +370,7 @@ int main(int argc, char **argv)
     app.RegisterHandler("TAKE_JOB", take_job_handler);                   // Взять задачу (написание, исправление, проверка)
     app.RegisterHandler("SEND_ON_CHECK", send_on_check_handler);         // Отправить задачу на проверку
     app.RegisterHandler("SEND_CHECK_RESULT", send_check_result_handler); // Возвратить результат проверки
-    app.RegisterHandler("SUBSCRIBE", subscribe_monitor_handler);         // Подписка на мониторинг
+    app.RegisterHandler("SUBSCRIBE", subscribe_monitor_broker_handler);         // Подписка на мониторинг
     app.Run();
 
     return 0;

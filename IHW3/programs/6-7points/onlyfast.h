@@ -7,6 +7,8 @@
 #include <unordered_map>
 #include <vector>
 #include <optional>
+#include <thread>
+#include <chrono>
 
 #include <unistd.h>
 #include <sstream>
@@ -181,10 +183,7 @@ namespace onlyfast
                     {
                         // Convert binary IP address to string
                         const char *result = inet_ntop(AF_INET, &(clnt_addr.sin_addr), ip_addr, INET_ADDRSTRLEN);
-                        if (result != NULL)
-                        {
-                            std::cout << ip_addr << std::endl;
-                        }
+
                         int clnt_sock = accept(serv_sock, (struct sockaddr *)&clnt_addr, &clnt_addr_size);
                         if (clnt_sock == -1)
                         {
@@ -195,6 +194,10 @@ namespace onlyfast
                         // Обработка клиентского подключения
                         std::string body = ReadRequestBody(clnt_sock);
                         Request request{clnt_sock, ip_addr, body};
+                        if (result != NULL)
+                        {
+                            request.ip = ip_addr;
+                        }
 
                         middleware(request);
 
@@ -306,7 +309,7 @@ namespace onlyfast
                 return response;
             }
 
-        private:
+        protected:
             struct sockaddr_in serv_addr;
             int buffer_size;
             bool debug;
@@ -338,6 +341,7 @@ namespace onlyfast
                 }
             }
         };
+
     }
 
     class Application
@@ -345,7 +349,6 @@ namespace onlyfast
     public:
         using Params = std::vector<std::string>;
 
-    private:
         struct RequestData : network::Request
         {
             std::string cmd;
@@ -406,6 +409,88 @@ namespace onlyfast
     private:
         network::Server &server;
         std::map<std::string, AppHandlerType> handlers;
+    };
+
+    class Monitor : network::Client
+    {
+    public:
+        using MonitorHandlerType = std::function<void(const std::string &)>;
+
+        Monitor(const std::string &ip = "127.0.0.1",
+                int port = 80,
+                int buffer_size = 1024,
+                bool debug = false) : Client(ip, port, buffer_size, debug)
+        {
+        }
+
+        void setHandler(MonitorHandlerType handler)
+        {
+            this->handler = handler;
+        }
+
+        void setSleepTime(int sleep_time)
+        {
+            if (sleep_time < 0)
+            {
+                throw std::invalid_argument("Invalid sleep time");
+            }
+            this->sleep_time = sleep_time;
+        }
+
+        bool subscribe()
+        {
+            auto resp = SendRequest("SUBSCRIBE");
+            if (resp.status != network::ResponseStatus::OK)
+            {
+                return false;
+            }
+            return true;
+        }
+
+        void run()
+        {
+            if (!subscribe())
+            {
+                std::cout << "Couldn't subscribe" << std::endl;
+                return;
+            }
+
+            int sock = socket(PF_INET, SOCK_STREAM, 0);
+            if (sock == -1)
+            {
+                perror("socket() error");
+                exit(EXIT_FAILURE);
+            }
+
+            if (connect(sock, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) == -1)
+            {
+                perror("connect() error");
+                exit(EXIT_FAILURE);
+            }
+
+            char buffer[buffer_size];
+
+            while (true)
+            {
+
+                ssize_t bytes_read = read(sock, buffer, buffer_size);
+                if (bytes_read <= 0)
+                {
+                    std::this_thread::sleep_for(std::chrono::milliseconds(sleep_time));
+                    continue;
+                }
+
+                std::string response_body(buffer, bytes_read);
+
+                handler(response_body);
+            }
+
+            close(sock);
+        }
+
+    private:
+        MonitorHandlerType handler;
+        int sleep_time = 1000; // milliseconds
     };
 
     class Arguments

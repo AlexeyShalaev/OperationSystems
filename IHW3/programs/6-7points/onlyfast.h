@@ -9,10 +9,10 @@
 #include <optional>
 #include <thread>
 #include <chrono>
-
-#include <unistd.h>
 #include <sstream>
 #include <stdexcept>
+
+#include <unistd.h>
 #include <arpa/inet.h>
 #include <sys/socket.h>
 #include <netinet/in.h>

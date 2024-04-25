@@ -263,10 +263,12 @@ public:
 
     void notify(std::string message)
     {
+        std::cout << "MonitorBroker: " << message << std::endl;
         onlyfast::network::Response response{.status = onlyfast::network::ResponseStatus::OK, .body = message};
         for (auto clnt_sock : clnt_sockets)
         {
-            onlyfast::network::Server::SendResponse(clnt_sock, response);
+            onlyfast::network::Server::SendResponse(clnt_sock, response); // не работает т.к. нужно соединение
+            // вот здесь нужно уведомить подписчиков 
         }
     }
 

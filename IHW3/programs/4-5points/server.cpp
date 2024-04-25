@@ -4,6 +4,7 @@
 #include <deque>
 #include <random>
 #include <functional>
+#include <cassert>
 
 #include "onlyfast.h"
 
@@ -12,16 +13,18 @@
 CMD:PARAM_1;PARAM_2;PARAM_3
 */
 
+int requests_counter = 0;
+
 class Solution
 {
 public:
     using Id = int;
 
-    Solution(int tasks_number = 5)
+    Solution(int tasks_number = 3)
     {
         for (int i = 0; i < tasks_number; ++i)
         {
-            tasks.push_back(Task(generate_random_string()));
+            tasks.push_back(new Task(generate_random_string()));
         }
     }
 
@@ -38,14 +41,16 @@ public:
                                  name(name) {}
     };
 
+    using TaskPtr = Task *;
+
     struct Programmer
     {
     public:
         static Id auto_inc;
         Id id;
         std::string name;
-        std::deque<Task> checking_tasks; // задачи на проверку
-        std::deque<Task> working_tasks;  // задачи на (пере-)выполнение
+        std::deque<TaskPtr> checking_tasks; // задачи на проверку
+        std::deque<TaskPtr> working_tasks;  // задачи на (пере-)выполнение
 
         Programmer(std::string name) : id(++auto_inc),
                                        name(name)
@@ -72,7 +77,7 @@ public:
         }
         if (!programmers[id].checking_tasks.empty())
         {
-            std::string task_id = std::to_string(programmers[id].checking_tasks.front().id);
+            std::string task_id = std::to_string(programmers[id].checking_tasks.front()->id);
             std::cout << "Programmer " << id << " is checking task " << task_id << std::endl;
             return "CHECK;" + task_id; // Даем задачу на проверку
         }
@@ -81,7 +86,7 @@ public:
         {
             for (auto task : programmer.checking_tasks)
             {
-                if (task.programmer_id == id)
+                if (task->programmer_id == id)
                 {
                     std::cout << "Programmer " << id << " is waiting for checking his task" << std::endl;
                     return "wait";
@@ -91,9 +96,9 @@ public:
 
         if (!programmers[id].working_tasks.empty())
         {
-            Task task = programmers[id].working_tasks.front();
-            std::cout << "Programmer " << id << " is working on task " << task.id << std::endl;
-            return task.name + ";" + std::to_string(task.id); // Даем задачу
+            TaskPtr task = programmers[id].working_tasks.front();
+            std::cout << "Programmer " << id << " is working on task " << task->id << std::endl;
+            return task->name + ";" + std::to_string(task->id); // Даем задачу
         }
         if (tasks.empty())
         {
@@ -106,13 +111,13 @@ public:
             }
             return "no tasks";
         }
-        Task task = tasks.front();
+        TaskPtr task = tasks.front();
         tasks.pop_front();
-        std::cout << "!!!!! " << task.id << std::endl;
-        task.programmer_id = id;
+        std::cout << "!!!!! " << task->id << std::endl;
+        task->programmer_id = id;
         programmers[id].working_tasks.push_back(task);
-        std::cout << "Programmer " << id << " is working on task " << task.id << std::endl;
-        return task.name + ";" + std::to_string(task.id); // Даем задачу
+        std::cout << "Programmer " << id << " is working on task " << task->id << std::endl;
+        return task->name + ";" + std::to_string(task->id); // Даем задачу
     }
 
     void send_on_check(std::string programmer_id_str, std::string task_id_str)
@@ -120,39 +125,39 @@ public:
         Id programmer_id = std::stoi(programmer_id_str);
         Id task_id = std::stoi(task_id_str);
 
-        Task task = programmers[programmer_id].working_tasks.front();
-        programmers[programmer_id].working_tasks.pop_front();
+        TaskPtr task_ptr = get_task_by_id(task_id, programmers[programmer_id].working_tasks);
 
-        if (task.mentor_id != -1)
+        if (task_ptr->mentor_id == -1)
         {
-            programmers[task.mentor_id].checking_tasks.push_back(task);
-            return;
+            task_ptr->mentor_id = get_minimum_loaded_programmer(programmer_id);
         }
 
-        Id mentor_id = get_minimum_loaded_programmer(programmer_id);
-        task.mentor_id = mentor_id;
-        programmers[mentor_id].checking_tasks.push_back(task);
-        std::cout << "Task " << task.id << " sent to check to programmer " << mentor_id << std::endl;
+        std::cout << "Task " << task_ptr->id << " sent to check to programmer " << task_ptr->mentor_id << std::endl;
+
+        programmers[task_ptr->mentor_id].checking_tasks.push_back(task_ptr);
+        remove_task_by_id(task_id, programmers[programmer_id].working_tasks);
     }
 
     void send_check_result(std::string programmer_id_str, std::string task_id_str, std::string result_str)
     {
+
         Id programmer_id = std::stoi(programmer_id_str);
         Id task_id = std::stoi(task_id_str);
 
-        Task task = programmers[programmer_id].checking_tasks.front();
-        programmers[programmer_id].checking_tasks.pop_front();
+        TaskPtr task_ptr = get_task_by_id(task_id, programmers[programmer_id].checking_tasks);
+        remove_task_by_id(task_id, programmers[programmer_id].checking_tasks);
 
         if (result_str == "CORRECT")
         {
             // Задача выполнена успешно
-            std::cout << "Task " << task.id << " is correct" << std::endl;
+            std::cout << "Task " << task_ptr->id << " is correct" << std::endl;
+            delete task_ptr;
         }
         else
         {
             // Задача выполнена неуспешно
-            std::cout << "Task " << task.id << " is incorrect" << std::endl;
-            programmers[task.programmer_id].working_tasks.push_back(task); // программист который делал задачу
+            std::cout << "Task " << task_ptr->id << " is incorrect" << std::endl;
+            programmers[task_ptr->programmer_id].working_tasks.push_back(task_ptr); // программист который делал задачу
         }
     }
 
@@ -175,29 +180,63 @@ public:
 
     void middleware(int clnt_sock, const onlyfast::network::Request &request)
     {
+
         using namespace std;
-        cout << "---------------------------------" << endl;
+        cout << "-------------- " << ++requests_counter << " -------------------" << endl;
+
+        for (auto taskPtr : tasks)
+        {
+            cout << "Task " << taskPtr->id << " is in queue" << endl;
+        }
+
         for (const auto &[id, programmer] : programmers)
         {
             cout << "Programmer " << id << " has " << programmer.checking_tasks.size() << " checking tasks [";
-            for (const auto &task : programmer.checking_tasks)
+            for (auto task : programmer.checking_tasks)
             {
-                cout << task.id << " ";
+                cout << task->id << " ";
             }
             cout << "]" << endl;
             cout << "Programmer " << id << " has " << programmer.working_tasks.size() << " working tasks [";
-            for (const auto &task : programmer.working_tasks)
+            for (auto task : programmer.working_tasks)
             {
-                cout << task.id << " ";
+                cout << task->id << " ";
             }
             cout << "]" << endl;
             cout << endl;
+        }
+        cout << "---------------------------------" << endl;
+    }
+
+    template <typename T>
+    TaskPtr get_task_by_id(Id id, T iterable)
+    {
+        for (auto task : iterable)
+        {
+            if (task->id == id)
+            {
+                return task;
+            }
+        }
+        return nullptr;
+    }
+
+    template <typename T>
+    void remove_task_by_id(Id id, T &iterable)
+    {
+        for (auto it = iterable.begin(); it != iterable.end(); ++it)
+        {
+            if ((*it)->id == id)
+            {
+                iterable.erase(it);
+                return;
+            }
         }
     }
 
 private:
     std::map<Id, Programmer> programmers;
-    std::deque<Task> tasks;
+    std::deque<TaskPtr> tasks;
 
     std::string generate_random_string(size_t length = 10)
     {
@@ -266,7 +305,8 @@ onlyfast::network::Response send_check_result_handler(const onlyfast::Applicatio
 int main()
 {
     onlyfast::network::Server server;
-    server.SetMiddleware([&](int clnt_sock, const onlyfast::network::Request &request) {}); // solution.middleware(clnt_sock, request);
+    server.SetMiddleware([&](int clnt_sock, const onlyfast::network::Request &request)
+                         { solution.middleware(clnt_sock, request); });
     onlyfast::Application app(server);
     app.RegisterHandler("ECHO", echo_handler);
     app.RegisterHandler("REG_PROG", register_programmer_handler);        // Регистрация программиста

@@ -75,7 +75,7 @@ namespace onlyfast
                    int buffer_size = 1024,
                    int max_clients = 10,
                    RequestHandlerType handler = Server::DefaultRequestHandler,
-                   bool debug = false) : debug(debug),
+                   bool debug = true) : debug(debug),
                                          logger(std::cout, debug),
                                          serv_sock(CreateSocket(ip, port)),
                                          buffer_size(buffer_size),
@@ -173,6 +173,8 @@ namespace onlyfast
                         logger << "Caught exception: " << e.what() << '\n';
                     }
                 }
+
+                logger << "Server stopped\n";
             }
 
             Request ReadRequest(int client_sock)

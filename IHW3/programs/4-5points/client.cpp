@@ -64,9 +64,12 @@ void *programmer_work(void *arg)
             std::cout << "Error in taking job: " << resp.body << std::endl;
             return 0;
         }
-        if (resp.body == "No tasks")
+
+        std::cout << resp.body << std::endl;
+
+        if (resp.body == "no tasks")
         {
-            std::cout << "No tasks" << std::endl;
+            std::cout << "no tasks" << std::endl;
             break;
         }
         else if (resp.body == "wait")
@@ -81,15 +84,19 @@ void *programmer_work(void *arg)
         if (data[0] == "CHECK")
         {
             // пришла таска на проверку
-            std::cout << "[" << programmer_id << "] " << "Task for check: " << data[1] << std::endl;
+            std::cout << "[" << programmer_id << "] "
+                      << "Task for check: " << data[1] << std::endl;
             std::this_thread::sleep_for(std::chrono::seconds(generate_random_number(1, 3)));
             int verdict = (rand() % 2 == 0);
             std::string str_verdict = verdict ? "CORRECT" : "INCORRECT";
-            std::cout << "[" << programmer_id << "] " << "Task checked: " << data[1] << " - " << str_verdict << std::endl;
+            std::cout << "[" << programmer_id << "] "
+                      << "Task checked: " << data[1] << " - " << str_verdict << std::endl;
             client.SendRequest("SEND_CHECK_RESULT:" + programmer_id + ";" + data[1] + ";" + str_verdict); // отправляем результат проверки
+            continue;
         }
 
-        std::cout << "[" << programmer_id << "] " <<  "Taken task: " << data[0] << std::endl;
+        std::cout << "[" << programmer_id << "] "
+                  << "Taken task: " << data[0] << std::endl;
         std::this_thread::sleep_for(std::chrono::seconds(generate_random_number(1, 3))); // типо делаем работу
         client.SendRequest("SEND_ON_CHECK:" + programmer_id + ";" + data[1]);            // отправляем программу на проверку
     }
@@ -99,7 +106,7 @@ void *programmer_work(void *arg)
 
 int main()
 {
-    int number_of_programmers = 3;
+    int number_of_programmers = 2;
     pthread_t threads[number_of_programmers];
     for (int i = 0; i < number_of_programmers; ++i)
     {

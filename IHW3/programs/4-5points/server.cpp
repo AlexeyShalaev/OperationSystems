@@ -17,7 +17,7 @@ class Solution
 public:
     using Id = int;
 
-    Solution(int tasks_number = 10)
+    Solution(int tasks_number = 5)
     {
         for (int i = 0; i < tasks_number; ++i)
         {
@@ -51,12 +51,15 @@ public:
                                        name(name)
         {
         }
+
+        Programmer() = default;
     };
 
     Id add_programmer(std::string name)
     {
         Programmer programmer(name);
         programmers.insert({programmer.id, programmer});
+        std::cout << "Programmer registered with id: " << programmer.id << std::endl;
         return programmer.id;
     }
 
@@ -67,24 +70,34 @@ public:
         {
             return "programmer not found";
         }
-        Programmer programmer = programmers[id];
-        if (!programmer.checking_tasks.empty())
+        if (!programmers[id].checking_tasks.empty())
         {
-            return "CHECK;" + std::to_string(programmer.checking_tasks.front().id); // Даем задачу на проверку
+            std::string task_id = std::to_string(programmers[id].checking_tasks.front().id);
+            std::cout << "Programmer " << id << " is checking task " << task_id << std::endl;
+            return "CHECK;" + task_id; // Даем задачу на проверку
         }
-        if (!programmer.working_tasks.empty())
+        if (!programmers[id].working_tasks.empty())
         {
-            Task task = programmer.working_tasks.front();
+            Task task = programmers[id].working_tasks.front();
+            std::cout << "Programmer " << id << " is working on task " << task.id << std::endl;
             return task.name + ";" + std::to_string(task.id); // Даем задачу
         }
         if (tasks.empty())
         {
+            for (auto &programmer : programmers)
+            {
+                if (!programmer.second.working_tasks.empty())
+                {
+                    return "wait for check";
+                }
+            }
             return "no tasks";
         }
         Task task = tasks.front();
         tasks.pop();
-        task.programmer_id = programmer.id;
-        programmer.working_tasks.push(task);
+        task.programmer_id = id;
+        programmers[id].working_tasks.push(task);
+        std::cout << "Programmer " << id << " is working on task" << task.id << std::endl;
         return task.name + ";" + std::to_string(task.id); // Даем задачу
     }
 
@@ -102,9 +115,10 @@ public:
             return;
         }
 
-        Programmer programmer = get_minimum_loaded_programmer(programmer_id).checking_tasks.push(task_id);
-        task.mentor_id = programmer.id;
-        programmer.checking_tasks.push(task);
+        Id mentor_id = get_minimum_loaded_programmer(programmer_id);
+        task.mentor_id = mentor_id;
+        programmers[mentor_id].checking_tasks.push(task);
+        std::cout << "Task " << task.id << " sent to check to programmer " << mentor_id << std::endl;
     }
 
     void send_check_result(std::string programmer_id_str, std::string task_id_str, std::string result_str)
@@ -115,32 +129,34 @@ public:
         Task task = programmers[programmer_id].checking_tasks.front();
         programmers[programmer_id].checking_tasks.pop();
 
-        Programmer programmer = programmers[task.programmer_id]; // программист который делал задачу
         if (result_str == "CORRECT")
         {
             // Задача выполнена успешно
+            std::cout << "Task " << task.id << " is correct" << std::endl;
         }
         else
         {
-            programmer.working_tasks.push(task);
+            // Задача выполнена неуспешно
+            std::cout << "Task " << task.id << " is incorrect" << std::endl;
+            programmers[task.programmer_id].working_tasks.push(task); // программист который делал задачу
         }
     }
 
-    Programmer get_minimum_loaded_programmer(Id exclude_id = -1)
+    Id get_minimum_loaded_programmer(Id exclude_id = -1)
     {
         Programmer min_loaded_programmer = programmers.begin()->second;
-        for (auto &programmer : programmers)
+        for (const auto &[id, programmer] : programmers)
         {
-            if (programmer.first == exclude_id)
+            if (programmer.id == exclude_id)
             {
                 continue;
             }
-            if (programmer.second.checking_tasks.size() < min_loaded_programmer.checking_tasks.size())
+            if (programmer.checking_tasks.size() < min_loaded_programmer.checking_tasks.size())
             {
-                min_loaded_programmer = programmer.second;
+                min_loaded_programmer = programmer;
             }
         }
-        return min_loaded_programmer;
+        return min_loaded_programmer.id;
     }
 
 private:

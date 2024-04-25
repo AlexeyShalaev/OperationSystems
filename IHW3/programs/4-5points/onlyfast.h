@@ -74,7 +74,7 @@ namespace onlyfast
                    int buffer_size = 1024,
                    int max_clients = 10,
                    RequestHandlerType handler = Server::DefaultRequestHandler,
-                   bool debug = true) : debug(debug),
+                   bool debug = false) : debug(debug),
                                         logger(std::cout, debug),
                                         serv_sock(CreateSocket(ip, port)),
                                         buffer_size(buffer_size),
@@ -114,7 +114,6 @@ namespace onlyfast
             // Функции для работы с сокетами
             int CreateSocket(const std::string &ip, int port)
             {
-                logger << "Creating socket...\n";
                 int sock = socket(PF_INET, SOCK_STREAM, 0);
                 if (sock == -1)
                 {
@@ -133,7 +132,6 @@ namespace onlyfast
                     perror("bind() error");
                     exit(EXIT_FAILURE);
                 }
-                logger << "Socket created successfully\n";
                 return sock;
             }
 
@@ -228,7 +226,7 @@ namespace onlyfast
             Client(const std::string &ip = "127.0.0.1",
                    int port = 80,
                    int buffer_size = 1024,
-                   bool debug = true) : debug(debug),
+                   bool debug = false) : debug(debug),
                                         logger(std::cout, debug),
                                         serv_addr(CreateSocketAddress(ip, port)),
                                         buffer_size(buffer_size)

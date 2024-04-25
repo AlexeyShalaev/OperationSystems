@@ -4,8 +4,18 @@
 #include <vector>
 #include <thread>
 #include <chrono>
+#include <pthread.h>
 
 #include "onlyfast.h"
+
+std::string generate_random_string(size_t length = 10)
+{
+    std::string str("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz");
+    std::random_device rd;
+    std::mt19937 generator(rd());
+    std::shuffle(str.begin(), str.end(), generator);
+    return str.substr(0, length);
+}
 
 int generate_random_number(int min, int max)
 {
@@ -32,12 +42,12 @@ std::vector<std::string> parse_params(std::string request)
     return data;
 }
 
-int main()
+void *programmer_work(void *arg)
 {
     onlyfast::network::Client client;
     std::vector<std::string> data;
 
-    auto resp = client.SendRequest("REG_PROG:Alex");
+    auto resp = client.SendRequest("REG_PROG:" + generate_random_string(4));
     if (resp.status != onlyfast::network::ResponseStatus::OK)
     {
         std::cout << "Error in registering programmer: " << resp.body << std::endl;
@@ -59,21 +69,54 @@ int main()
             std::cout << "No tasks" << std::endl;
             break;
         }
+        else if (resp.body == "wait for check")
+        {
+            std::cout << "Wait for check" << std::endl;
+            std::this_thread::sleep_for(std::chrono::seconds(1));
+            continue;
+        }
 
         data = parse_params(resp.body);
 
         if (data[0] == "CHECK")
         {
             // пришла таска на проверку
-            std::cout << "Task for check: " << data[1] << std::endl;
+            std::cout << "[" << programmer_id << "] " << "Task for check: " << data[1] << std::endl;
             std::this_thread::sleep_for(std::chrono::seconds(generate_random_number(1, 5)));
             int verdict = (rand() % 2 == 0);
-            client.SendRequest("SEND_CHECK_RESULT:" + programmer_id + ";" + data[1] + ";" + verdict ? "CORRECT" : "INCORRECT"); // отправляем результат проверки
+            std::string str_verdict = verdict ? "CORRECT" : "INCORRECT";
+            std::cout << "[" << programmer_id << "] " << "Task checked: " << data[1] << " - " << str_verdict << std::endl;
+            client.SendRequest("SEND_CHECK_RESULT:" + programmer_id + ";" + data[1] + ";" + str_verdict); // отправляем результат проверки
         }
 
-        std::cout << "Taken task: " << data[0] << std::endl;
+        std::cout << "[" << programmer_id << "] " <<  "Taken task: " << data[0] << std::endl;
         std::this_thread::sleep_for(std::chrono::seconds(generate_random_number(1, 5))); // типо делаем работу
         client.SendRequest("SEND_ON_CHECK:" + programmer_id + ";" + data[1]);            // отправляем программу на проверку
+    }
+
+    pthread_exit(NULL);
+}
+
+int main()
+{
+    int number_of_programmers = 3;
+    pthread_t threads[number_of_programmers];
+    for (int i = 0; i < number_of_programmers; ++i)
+    {
+        if (pthread_create(&threads[i], NULL, programmer_work, NULL))
+        {
+            perror("pthread_create");
+            return 1;
+        }
+    }
+
+    for (int i = 0; i < number_of_programmers; ++i)
+    {
+        if (pthread_join(threads[i], NULL))
+        {
+            perror("pthread_join");
+            return 1;
+        }
     }
 
     return 0;

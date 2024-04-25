@@ -108,6 +108,7 @@ public:
         }
         Task task = tasks.front();
         tasks.pop_front();
+        std::cout << "!!!!! " << task.id << std::endl;
         task.programmer_id = id;
         programmers[id].working_tasks.push_back(task);
         std::cout << "Programmer " << id << " is working on task " << task.id << std::endl;
@@ -174,9 +175,23 @@ public:
 
     void middleware(int clnt_sock, const onlyfast::network::Request &request)
     {
-        for (const Task &task : tasks)
+        using namespace std;
+        cout << "---------------------------------" << endl;
+        for (const auto &[id, programmer] : programmers)
         {
-            std::cout << "Task: " << task.name << ", id = " << task.id << ", programmer_id = " << task.programmer_id << ", mentor_id = " << task.mentor_id << std::endl;
+            cout << "Programmer " << id << " has " << programmer.checking_tasks.size() << " checking tasks [";
+            for (const auto &task : programmer.checking_tasks)
+            {
+                cout << task.id << " ";
+            }
+            cout << "]" << endl;
+            cout << "Programmer " << id << " has " << programmer.working_tasks.size() << " working tasks [";
+            for (const auto &task : programmer.working_tasks)
+            {
+                cout << task.id << " ";
+            }
+            cout << "]" << endl;
+            cout << endl;
         }
     }
 
@@ -251,8 +266,7 @@ onlyfast::network::Response send_check_result_handler(const onlyfast::Applicatio
 int main()
 {
     onlyfast::network::Server server;
-    server.SetMiddleware([&](int clnt_sock, const onlyfast::network::Request &request)
-                         { solution.middleware(clnt_sock, request); });
+    server.SetMiddleware([&](int clnt_sock, const onlyfast::network::Request &request) {}); // solution.middleware(clnt_sock, request);
     onlyfast::Application app(server);
     app.RegisterHandler("ECHO", echo_handler);
     app.RegisterHandler("REG_PROG", register_programmer_handler);        // Регистрация программиста

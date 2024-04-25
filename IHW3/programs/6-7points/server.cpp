@@ -357,8 +357,10 @@ int main(int argc, char **argv)
     auto debug = args.GetBool("debug", false);
 
     onlyfast::network::Server server(host, port, buffer_size, max_clients, onlyfast::network::Server::DefaultRequestHandler, debug);
-    server.SetMiddleware([&](const onlyfast::network::Request &request)
-                         { monitorBroker.notify(request.ip); });
+    // server.SetMiddleware([&](const onlyfast::network::Request &request)
+    //                      { solution.middleware(request); });
+    server.SetAfterResponse([&](const onlyfast::network::Request &request, const onlyfast::network::Response &response)
+                            { monitorBroker.notify(request.ip); });
 
     onlyfast::Application app(server);
     app.RegisterHandler("ECHO", echo_handler);

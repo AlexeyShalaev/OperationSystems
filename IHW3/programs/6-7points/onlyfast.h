@@ -73,6 +73,7 @@ namespace onlyfast
 
         using RequestHandlerType = std::function<Response(const Request &)>;
         using MiddlewareType = std::function<void(const Request &)>;
+        using AfterResponseType = std::function<void(const Request &, const Response &)>;
 
         class Server
         {
@@ -117,6 +118,11 @@ namespace onlyfast
                 this->middleware = middleware;
             }
 
+            void SetAfterResponse(AfterResponseType after_response)
+            {
+                this->after_response = after_response;
+            }
+
             static Response DefaultRequestHandler(const Request &request)
             {
                 Response response;
@@ -144,6 +150,7 @@ namespace onlyfast
             bool debug;
             logger::Logger logger;
             MiddlewareType middleware = [](const Request &request) {};
+            AfterResponseType after_response = [](const Request &request, const Response &response) {};
 
             // Функции для работы с сокетами
             int CreateSocket(const std::string &ip, int port)
@@ -206,6 +213,8 @@ namespace onlyfast
                         logger << "Sent response: " << response.body << "\n";
 
                         CloseSocket(clnt_sock);
+
+                        after_response(request, response);
                     }
                     catch (const std::exception &e)
                     {
@@ -474,6 +483,7 @@ namespace onlyfast
 
                 if (bytes_read <= 0)
                 {
+                    logger << "Failed to read data from server\n";
                     std::this_thread::sleep_for(std::chrono::milliseconds(sleep_time));
                     continue;
                 }

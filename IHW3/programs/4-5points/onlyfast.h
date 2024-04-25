@@ -65,6 +65,7 @@ namespace onlyfast
         };
 
         using RequestHandlerType = std::function<Response(const Request &)>;
+        using MiddlewareType = std::function<void(int clnt_sock, const Request &)>;
 
         class Server
         {
@@ -75,10 +76,10 @@ namespace onlyfast
                    int max_clients = 10,
                    RequestHandlerType handler = Server::DefaultRequestHandler,
                    bool debug = false) : debug(debug),
-                                        logger(std::cout, debug),
-                                        serv_sock(CreateSocket(ip, port)),
-                                        buffer_size(buffer_size),
-                                        request_handler(std::move(handler))
+                                         logger(std::cout, debug),
+                                         serv_sock(CreateSocket(ip, port)),
+                                         buffer_size(buffer_size),
+                                         request_handler(std::move(handler))
             {
                 if (listen(serv_sock, max_clients) == -1)
                 {
@@ -104,12 +105,18 @@ namespace onlyfast
                 request_handler = std::move(handler);
             }
 
+            void SetMiddleware(MiddlewareType middleware)
+            {
+                this->middleware = middleware;
+            }
+
         private:
             int buffer_size;
             int serv_sock;
             RequestHandlerType request_handler;
             bool debug;
             logger::Logger logger;
+            MiddlewareType middleware = [](int clnt_sock, const Request &request) {};
 
             // Функции для работы с сокетами
             int CreateSocket(const std::string &ip, int port)
@@ -150,8 +157,12 @@ namespace onlyfast
                             perror("accept() error");
                             continue;
                         }
+
                         // Обработка клиентского подключения
                         Request request = ReadRequest(clnt_sock);
+
+                        middleware(clnt_sock, request);
+
                         Response response = request_handler(request);
                         SendResponse(clnt_sock, response);
 
@@ -227,9 +238,9 @@ namespace onlyfast
                    int port = 80,
                    int buffer_size = 1024,
                    bool debug = false) : debug(debug),
-                                        logger(std::cout, debug),
-                                        serv_addr(CreateSocketAddress(ip, port)),
-                                        buffer_size(buffer_size)
+                                         logger(std::cout, debug),
+                                         serv_addr(CreateSocketAddress(ip, port)),
+                                         buffer_size(buffer_size)
 
             {
             }

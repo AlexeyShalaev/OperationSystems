@@ -1,7 +1,7 @@
 #include <iostream>
 #include <string>
 #include <map>
-#include <queue>
+#include <deque>
 #include <random>
 #include <functional>
 
@@ -21,7 +21,7 @@ public:
     {
         for (int i = 0; i < tasks_number; ++i)
         {
-            tasks.push(Task(generate_random_string()));
+            tasks.push_back(Task(generate_random_string()));
         }
     }
 
@@ -44,8 +44,8 @@ public:
         static Id auto_inc;
         Id id;
         std::string name;
-        std::queue<Task> checking_tasks; // задачи на проверку
-        std::queue<Task> working_tasks;  // задачи на (пере-)выполнение
+        std::deque<Task> checking_tasks; // задачи на проверку
+        std::deque<Task> working_tasks;  // задачи на (пере-)выполнение
 
         Programmer(std::string name) : id(++auto_inc),
                                        name(name)
@@ -76,6 +76,19 @@ public:
             std::cout << "Programmer " << id << " is checking task " << task_id << std::endl;
             return "CHECK;" + task_id; // Даем задачу на проверку
         }
+
+        for (auto &[programmer_id, programmer] : programmers)
+        {
+            for (auto task : programmer.checking_tasks)
+            {
+                if (task.programmer_id == id)
+                {
+                    std::cout << "Programmer " << id << " is waiting for checking his task" << std::endl;
+                    return "wait";
+                }
+            }
+        }
+
         if (!programmers[id].working_tasks.empty())
         {
             Task task = programmers[id].working_tasks.front();
@@ -88,16 +101,16 @@ public:
             {
                 if (!programmer.second.working_tasks.empty())
                 {
-                    return "wait for check";
+                    return "wait";
                 }
             }
             return "no tasks";
         }
         Task task = tasks.front();
-        tasks.pop();
+        tasks.pop_front();
         task.programmer_id = id;
-        programmers[id].working_tasks.push(task);
-        std::cout << "Programmer " << id << " is working on task" << task.id << std::endl;
+        programmers[id].working_tasks.push_back(task);
+        std::cout << "Programmer " << id << " is working on task " << task.id << std::endl;
         return task.name + ";" + std::to_string(task.id); // Даем задачу
     }
 
@@ -107,17 +120,17 @@ public:
         Id task_id = std::stoi(task_id_str);
 
         Task task = programmers[programmer_id].working_tasks.front();
-        programmers[programmer_id].working_tasks.pop();
+        programmers[programmer_id].working_tasks.pop_front();
 
         if (task.mentor_id != -1)
         {
-            programmers[task.mentor_id].checking_tasks.push(task);
+            programmers[task.mentor_id].checking_tasks.push_back(task);
             return;
         }
 
         Id mentor_id = get_minimum_loaded_programmer(programmer_id);
         task.mentor_id = mentor_id;
-        programmers[mentor_id].checking_tasks.push(task);
+        programmers[mentor_id].checking_tasks.push_back(task);
         std::cout << "Task " << task.id << " sent to check to programmer " << mentor_id << std::endl;
     }
 
@@ -127,7 +140,7 @@ public:
         Id task_id = std::stoi(task_id_str);
 
         Task task = programmers[programmer_id].checking_tasks.front();
-        programmers[programmer_id].checking_tasks.pop();
+        programmers[programmer_id].checking_tasks.pop_front();
 
         if (result_str == "CORRECT")
         {
@@ -138,7 +151,7 @@ public:
         {
             // Задача выполнена неуспешно
             std::cout << "Task " << task.id << " is incorrect" << std::endl;
-            programmers[task.programmer_id].working_tasks.push(task); // программист который делал задачу
+            programmers[task.programmer_id].working_tasks.push_back(task); // программист который делал задачу
         }
     }
 
@@ -151,7 +164,7 @@ public:
             {
                 continue;
             }
-            if (programmer.checking_tasks.size() < min_loaded_programmer.checking_tasks.size())
+            if (programmer.checking_tasks.size() < min_loaded_programmer.checking_tasks.size() || min_loaded_programmer.id == exclude_id)
             {
                 min_loaded_programmer = programmer;
             }
@@ -161,7 +174,7 @@ public:
 
 private:
     std::map<Id, Programmer> programmers;
-    std::queue<Task> tasks;
+    std::deque<Task> tasks;
 
     std::string generate_random_string(size_t length = 10)
     {
@@ -230,6 +243,8 @@ onlyfast::network::Response send_check_result_handler(const onlyfast::Applicatio
 int main()
 {
     onlyfast::network::Server server;
+    server.SetMiddleware([](int clnt_sock, const onlyfast::network::Request &request)
+                         { std::cout << "Request from client " << clnt_sock << ": " << request.body << std::endl; });
     onlyfast::Application app(server);
     app.RegisterHandler("ECHO", echo_handler);
     app.RegisterHandler("REG_PROG", register_programmer_handler);        // Регистрация программиста

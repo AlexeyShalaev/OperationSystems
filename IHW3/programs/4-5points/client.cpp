@@ -69,7 +69,7 @@ void *programmer_work(void *arg)
             std::cout << "No tasks" << std::endl;
             break;
         }
-        else if (resp.body == "wait for check")
+        else if (resp.body == "wait")
         {
             std::cout << "Wait for check" << std::endl;
             std::this_thread::sleep_for(std::chrono::seconds(1));
@@ -82,7 +82,7 @@ void *programmer_work(void *arg)
         {
             // пришла таска на проверку
             std::cout << "[" << programmer_id << "] " << "Task for check: " << data[1] << std::endl;
-            std::this_thread::sleep_for(std::chrono::seconds(generate_random_number(1, 5)));
+            std::this_thread::sleep_for(std::chrono::seconds(generate_random_number(1, 3)));
             int verdict = (rand() % 2 == 0);
             std::string str_verdict = verdict ? "CORRECT" : "INCORRECT";
             std::cout << "[" << programmer_id << "] " << "Task checked: " << data[1] << " - " << str_verdict << std::endl;
@@ -90,7 +90,7 @@ void *programmer_work(void *arg)
         }
 
         std::cout << "[" << programmer_id << "] " <<  "Taken task: " << data[0] << std::endl;
-        std::this_thread::sleep_for(std::chrono::seconds(generate_random_number(1, 5))); // типо делаем работу
+        std::this_thread::sleep_for(std::chrono::seconds(generate_random_number(1, 3))); // типо делаем работу
         client.SendRequest("SEND_ON_CHECK:" + programmer_id + ";" + data[1]);            // отправляем программу на проверку
     }
 

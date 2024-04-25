@@ -15,7 +15,6 @@ CMD:PARAM_1;PARAM_2;PARAM_3
 
 void monitoring(const std::string &payload)
 {
-
     std::cout << payload << std::endl;
 }
 
@@ -37,7 +36,6 @@ int main(int argc, char **argv)
     auto debug = args.GetBool("debug", false);
     onlyfast::Monitor monitor(host, port, buffer_size, debug);
     monitor.setHandler(monitoring);
-    monitor.subscribe();
     monitor.run();
 
     return 0;

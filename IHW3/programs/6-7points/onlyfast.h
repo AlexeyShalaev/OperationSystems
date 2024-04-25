@@ -181,9 +181,6 @@ namespace onlyfast
                 {
                     try
                     {
-                        // Convert binary IP address to string
-                        const char *result = inet_ntop(AF_INET, &(clnt_addr.sin_addr), ip_addr, INET_ADDRSTRLEN);
-
                         int clnt_sock = accept(serv_sock, (struct sockaddr *)&clnt_addr, &clnt_addr_size);
                         if (clnt_sock == -1)
                         {
@@ -191,12 +188,15 @@ namespace onlyfast
                             continue;
                         }
 
+                        // Convert binary IP address to string
+                        const char *result = inet_ntop(AF_INET, &(clnt_addr.sin_addr), ip_addr, INET_ADDRSTRLEN);
+
                         // Обработка клиентского подключения
                         std::string body = ReadRequestBody(clnt_sock);
                         Request request{clnt_sock, ip_addr, body};
                         if (result != NULL)
                         {
-                            request.ip = ip_addr;
+                            request.ip = result;
                         }
 
                         middleware(request);
@@ -362,10 +362,17 @@ namespace onlyfast
 
                 while ((pos = request.find(';')) != std::string::npos)
                 {
-                    params.push_back(request.substr(0, pos));
+                    auto str = request.substr(0, pos);
+                    if (!str.empty())
+                    {
+                        params.push_back(str);
+                    }
                     request.erase(0, pos + 1);
                 }
-                params.push_back(request);
+                if (!request.empty())
+                {
+                    params.push_back(request);
+                }
             }
         };
 
@@ -437,16 +444,6 @@ namespace onlyfast
             this->sleep_time = sleep_time;
         }
 
-        bool subscribe()
-        {
-            auto resp = SendRequest("SUBSCRIBE");
-            if (resp.status != network::ResponseStatus::OK)
-            {
-                return false;
-            }
-            return true;
-        }
-
         void run()
         {
             if (!subscribe())
@@ -462,18 +459,19 @@ namespace onlyfast
                 exit(EXIT_FAILURE);
             }
 
-            if (connect(sock, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) == -1)
-            {
-                perror("connect() error");
-                exit(EXIT_FAILURE);
-            }
-
             char buffer[buffer_size];
 
             while (true)
             {
+                if (connect(sock, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) == -1)
+                {
+                    perror("connect() error");
+                    exit(EXIT_FAILURE);
+                }
 
                 ssize_t bytes_read = read(sock, buffer, buffer_size);
+                close(sock);
+
                 if (bytes_read <= 0)
                 {
                     std::this_thread::sleep_for(std::chrono::milliseconds(sleep_time));
@@ -484,13 +482,21 @@ namespace onlyfast
 
                 handler(response_body);
             }
-
-            close(sock);
         }
 
     private:
         MonitorHandlerType handler;
         int sleep_time = 1000; // milliseconds
+
+        bool subscribe()
+        {
+            auto resp = SendRequest("SUBSCRIBE:");
+            if (resp.status != network::ResponseStatus::OK)
+            {
+                return false;
+            }
+            return true;
+        }
     };
 
     class Arguments

@@ -331,12 +331,8 @@ onlyfast::network::Response send_check_result_handler(const onlyfast::Applicatio
 
 onlyfast::network::Response subscribe_monitor_broker_handler(const onlyfast::Application::RequestData &rd)
 {
-    if (rd.params.empty())
-    {
-        return {onlyfast::network::ResponseStatus::FAILED, "No parameters"};
-    } // todo: delete
     monitorBroker.subscribe(rd.clnt_sock);
-    return {onlyfast::network::ResponseStatus::OK, "OK"};
+    return {onlyfast::network::ResponseStatus::OK, "Subscribed"};
 }
 
 int main(int argc, char **argv)
@@ -370,7 +366,7 @@ int main(int argc, char **argv)
     app.RegisterHandler("TAKE_JOB", take_job_handler);                   // Взять задачу (написание, исправление, проверка)
     app.RegisterHandler("SEND_ON_CHECK", send_on_check_handler);         // Отправить задачу на проверку
     app.RegisterHandler("SEND_CHECK_RESULT", send_check_result_handler); // Возвратить результат проверки
-    app.RegisterHandler("SUBSCRIBE", subscribe_monitor_broker_handler);         // Подписка на мониторинг
+    app.RegisterHandler("SUBSCRIBE", subscribe_monitor_broker_handler);  // Подписка на мониторинг
     app.Run();
 
     return 0;

@@ -4,7 +4,6 @@
 #include <deque>
 #include <random>
 #include <functional>
-#include <cassert>
 
 #include "onlyfast.h"
 

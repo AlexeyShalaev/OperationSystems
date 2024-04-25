@@ -75,7 +75,7 @@ namespace onlyfast
                    int buffer_size = 1024,
                    int max_clients = 10,
                    RequestHandlerType handler = Server::DefaultRequestHandler,
-                   bool debug = true) : debug(debug),
+                   bool debug = false) : debug(debug),
                                          logger(std::cout, debug),
                                          serv_sock(CreateSocket(ip, port)),
                                          buffer_size(buffer_size),

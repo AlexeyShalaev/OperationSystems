@@ -172,6 +172,14 @@ public:
         return min_loaded_programmer.id;
     }
 
+    void middleware(int clnt_sock, const onlyfast::network::Request &request)
+    {
+        for (const Task &task : tasks)
+        {
+            std::cout << "Task: " << task.name << ", id = " << task.id << ", programmer_id = " << task.programmer_id << ", mentor_id = " << task.mentor_id << std::endl;
+        }
+    }
+
 private:
     std::map<Id, Programmer> programmers;
     std::deque<Task> tasks;
@@ -243,8 +251,8 @@ onlyfast::network::Response send_check_result_handler(const onlyfast::Applicatio
 int main()
 {
     onlyfast::network::Server server;
-    server.SetMiddleware([](int clnt_sock, const onlyfast::network::Request &request)
-                         { std::cout << "Request from client " << clnt_sock << ": " << request.body << std::endl; });
+    server.SetMiddleware([&](int clnt_sock, const onlyfast::network::Request &request)
+                         { solution.middleware(clnt_sock, request); });
     onlyfast::Application app(server);
     app.RegisterHandler("ECHO", echo_handler);
     app.RegisterHandler("REG_PROG", register_programmer_handler);        // Регистрация программиста

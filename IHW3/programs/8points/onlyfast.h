@@ -184,7 +184,8 @@ namespace onlyfast
                                          logger(std::cout, debug),
                                          serv_sock(CreateSocket(ip, port)),
                                          buffer_size(buffer_size),
-                                         request_handler(std::move(handler))
+                                         request_handler(std::move(handler)),
+                                         monitorBroker(buffer_size)
             {
                 if (listen(serv_sock, max_clients) == -1)
                 {

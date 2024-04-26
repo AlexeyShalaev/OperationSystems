@@ -5,6 +5,7 @@
 #include <deque>
 #include <random>
 #include <functional>
+#include <sstream>
 
 #include "onlyfast.h"
 
@@ -177,34 +178,34 @@ public:
         return min_loaded_programmer.id;
     }
 
-    void middleware(const onlyfast::network::Request &request)
+    std::string getState()
     {
-
-        using namespace std;
-        cout << "-------------- " << ++requests_counter << " -------------------" << endl;
+        std::stringstream ss;
+        ss << "-------------- " << ++requests_counter << " -------------------" << std::endl;
 
         for (auto taskPtr : tasks)
         {
-            cout << "Task " << taskPtr->id << " is in queue" << endl;
+            ss << "Task " << taskPtr->id << " is in queue" << std::endl;
         }
 
         for (const auto &[id, programmer] : programmers)
         {
-            cout << "Programmer " << id << " has " << programmer.checking_tasks.size() << " checking tasks [";
+            ss << "Programmer " << id << " has " << programmer.checking_tasks.size() << " checking tasks [";
             for (auto task : programmer.checking_tasks)
             {
-                cout << task->id << " ";
+                ss << task->id << " ";
             }
-            cout << "]" << endl;
-            cout << "Programmer " << id << " has " << programmer.working_tasks.size() << " working tasks [";
+            ss << "]" << std::endl;
+            ss << "Programmer " << id << " has " << programmer.working_tasks.size() << " working tasks [";
             for (auto task : programmer.working_tasks)
             {
-                cout << task->id << " ";
+                ss << task->id << " ";
             }
-            cout << "]" << endl;
-            cout << endl;
+            ss << "]" << std::endl;
+            ss << std::endl;
         }
-        cout << "---------------------------------" << endl;
+        ss << "---------------------------------" << std::endl;
+        return ss.str();
     }
 
     template <typename T>
@@ -247,41 +248,11 @@ private:
     }
 };
 
-class MonitorBroker
-{
-public:
-    MonitorBroker() = default;
-    void subscribe(int clnt_sock)
-    {
-        clnt_sockets.insert(clnt_sock);
-    }
-
-    void unsubscribe(int clnt_sock)
-    {
-        clnt_sockets.erase(clnt_sock);
-    }
-
-    void notify(std::string message)
-    {
-        std::cout << "MonitorBroker: " << message << std::endl;
-        onlyfast::network::Response response{.status = onlyfast::network::ResponseStatus::OK, .body = message};
-        for (auto clnt_sock : clnt_sockets)
-        {
-            onlyfast::network::Server::SendResponse(clnt_sock, response); // не работает т.к. нужно соединение
-            // вот здесь нужно уведомить подписчиков 
-        }
-    }
-
-private:
-    std::set<int> clnt_sockets;
-};
-
 // Инициализация статических переменных классов
 Solution::Id Solution::Programmer::auto_inc = 0;
 Solution::Id Solution::Task::auto_inc = 0;
 
 Solution solution;
-MonitorBroker monitorBroker;
 
 onlyfast::network::Response echo_handler(const onlyfast::Application::RequestData &rd)
 {
@@ -331,12 +302,6 @@ onlyfast::network::Response send_check_result_handler(const onlyfast::Applicatio
     return {onlyfast::network::ResponseStatus::OK, "OK"};
 }
 
-onlyfast::network::Response subscribe_monitor_broker_handler(const onlyfast::Application::RequestData &rd)
-{
-    monitorBroker.subscribe(rd.clnt_sock);
-    return {onlyfast::network::ResponseStatus::OK, "Subscribed"};
-}
-
 int main(int argc, char **argv)
 {
     onlyfast::Arguments args;
@@ -359,10 +324,8 @@ int main(int argc, char **argv)
     auto debug = args.GetBool("debug", false);
 
     onlyfast::network::Server server(host, port, buffer_size, max_clients, onlyfast::network::Server::DefaultRequestHandler, debug);
-    // server.SetMiddleware([&](const onlyfast::network::Request &request)
-    //                      { solution.middleware(request); });
     server.SetAfterResponse([&](const onlyfast::network::Request &request, const onlyfast::network::Response &response)
-                            { monitorBroker.notify(request.ip); });
+                            { server.notifyAll(solution.getState()); });
 
     onlyfast::Application app(server);
     app.RegisterHandler("ECHO", echo_handler);
@@ -370,7 +333,6 @@ int main(int argc, char **argv)
     app.RegisterHandler("TAKE_JOB", take_job_handler);                   // Взять задачу (написание, исправление, проверка)
     app.RegisterHandler("SEND_ON_CHECK", send_on_check_handler);         // Отправить задачу на проверку
     app.RegisterHandler("SEND_CHECK_RESULT", send_check_result_handler); // Возвратить результат проверки
-    app.RegisterHandler("SUBSCRIBE", subscribe_monitor_broker_handler);  // Подписка на мониторинг
     app.Run();
 
     return 0;

@@ -1,0 +1,7 @@
+version: '3'
+services:
+    test_os_1714153357.1519074:
+        build:
+            context: ./programs/4-5points/
+            dockerfile: Dockerfile
+        container_name: test_os_1714153357.1519074

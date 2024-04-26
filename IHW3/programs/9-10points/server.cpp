@@ -25,13 +25,7 @@ class Solution
 public:
     using Id = int;
 
-    Solution(int tasks_number = 10)
-    {
-        for (int i = 0; i < tasks_number; ++i)
-        {
-            tasks.push_back(new Task(generate_random_string()));
-        }
-    }
+    Solution() = default;
 
     struct Task
     {
@@ -64,6 +58,14 @@ public:
 
         Programmer() = default;
     };
+
+    void add_tasks(int tasks_number)
+    {
+        for (int i = 0; i < tasks_number; ++i)
+        {
+            tasks.push_back(new Task(generate_random_string()));
+        }
+    }
 
     Id add_programmer(std::string name)
     {
@@ -339,6 +341,8 @@ int main(int argc, char **argv)
     auto buffer_size = args.GetInt("buffer_size", 1024);
     auto max_clients = args.GetInt("max_clients", 10);
     auto debug = args.GetBool("debug", false);
+
+    solution.add_tasks(tasks_number);
 
     onlyfast::network::Server server(host, port, buffer_size, max_clients, onlyfast::network::Server::DefaultRequestHandler, debug);
     server.SetAfterResponse([&](const onlyfast::network::Request &request, const onlyfast::network::Response &response)

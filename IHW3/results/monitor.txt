@@ -1,0 +1,389 @@
+docker exec -it app ./monitor
+OK:-------------- 1 -------------------
+Task 1 is in queue
+Task 2 is in queue
+Task 3 is in queue
+---------------------------------
+
+OK:-------------- 2 -------------------
+Task 1 is in queue
+Task 2 is in queue
+Task 3 is in queue
+Programmer 1 has 0 checking tasks []
+Programmer 1 has 0 working tasks []
+
+---------------------------------
+
+OK:-------------- 3 -------------------
+Task 1 is in queue
+Task 2 is in queue
+Task 3 is in queue
+Programmer 1 has 0 checking tasks []
+Programmer 1 has 0 working tasks []
+
+Programmer 2 has 0 checking tasks []
+Programmer 2 has 0 working tasks []
+
+---------------------------------
+
+OK:-------------- 4 -------------------
+Task 2 is in queue
+Task 3 is in queue
+Programmer 1 has 0 checking tasks []
+Programmer 1 has 1 working tasks [1 ]
+
+Programmer 2 has 0 checking tasks []
+Programmer 2 has 0 working tasks []
+
+---------------------------------
+
+OK:-------------- 5 -------------------
+Task 3 is in queue
+Programmer 1 has 0 checking tasks []
+Programmer 1 has 1 working tasks [1 ]
+
+Programmer 2 has 0 checking tasks []
+Programmer 2 has 1 working tasks [2 ]
+
+---------------------------------
+
+OK:-------------- 6 -------------------
+Task 3 is in queue
+Programmer 1 has 0 checking tasks []
+Programmer 1 has 0 working tasks []
+
+Programmer 2 has 1 checking tasks [1 ]
+Programmer 2 has 1 working tasks [2 ]
+
+---------------------------------
+
+OK:-------------- 7 -------------------
+Task 3 is in queue
+Programmer 1 has 1 checking tasks [2 ]
+Programmer 1 has 0 working tasks []
+
+Programmer 2 has 1 checking tasks [1 ]
+Programmer 2 has 0 working tasks []
+
+---------------------------------
+
+OK:-------------- 8 -------------------
+Task 3 is in queue
+Programmer 1 has 1 checking tasks [2 ]
+Programmer 1 has 0 working tasks []
+
+Programmer 2 has 1 checking tasks [1 ]
+Programmer 2 has 0 working tasks []
+
+---------------------------------
+
+OK:-------------- 9 -------------------
+Task 3 is in queue
+Programmer 1 has 1 checking tasks [2 ]
+Programmer 1 has 0 working tasks []
+
+Programmer 2 has 1 checking tasks [1 ]
+Programmer 2 has 0 working tasks []
+
+---------------------------------
+
+OK:-------------- 10 -------------------
+Task 3 is in queue
+Programmer 1 has 0 checking tasks []
+Programmer 1 has 0 working tasks []
+
+Programmer 2 has 1 checking tasks [1 ]
+Programmer 2 has 0 working tasks []
+
+---------------------------------
+
+OK:-------------- 11 -------------------
+Task 3 is in queue
+Programmer 1 has 0 checking tasks []
+Programmer 1 has 0 working tasks []
+
+Programmer 2 has 0 checking tasks []
+Programmer 2 has 0 working tasks []
+
+---------------------------------
+
+OK:-------------- 12 -------------------
+Programmer 1 has 0 checking tasks []
+Programmer 1 has 1 working tasks [3 ]
+
+Programmer 2 has 0 checking tasks []
+Programmer 2 has 0 working tasks []
+
+---------------------------------
+
+OK:-------------- 13 -------------------
+Programmer 1 has 0 checking tasks []
+Programmer 1 has 1 working tasks [3 ]
+
+Programmer 2 has 0 checking tasks []
+Programmer 2 has 0 working tasks []
+
+---------------------------------
+
+OK:-------------- 14 -------------------
+Programmer 1 has 0 checking tasks []
+Programmer 1 has 0 working tasks []
+
+Programmer 2 has 1 checking tasks [3 ]
+Programmer 2 has 0 working tasks []
+
+---------------------------------
+
+OK:-------------- 15 -------------------
+Programmer 1 has 0 checking tasks []
+Programmer 1 has 0 working tasks []
+
+Programmer 2 has 1 checking tasks [3 ]
+Programmer 2 has 0 working tasks []
+
+---------------------------------
+
+OK:-------------- 16 -------------------
+Programmer 1 has 0 checking tasks []
+Programmer 1 has 0 working tasks []
+
+Programmer 2 has 1 checking tasks [3 ]
+Programmer 2 has 0 working tasks []
+
+---------------------------------
+
+OK:-------------- 17 -------------------
+Programmer 1 has 0 checking tasks []
+Programmer 1 has 0 working tasks []
+
+Programmer 2 has 1 checking tasks [3 ]
+Programmer 2 has 0 working tasks []
+
+---------------------------------
+
+OK:-------------- 18 -------------------
+Programmer 1 has 0 checking tasks []
+Programmer 1 has 1 working tasks [3 ]
+
+Programmer 2 has 0 checking tasks []
+Programmer 2 has 0 working tasks []
+
+---------------------------------
+
+OK:-------------- 19 -------------------
+Programmer 1 has 0 checking tasks []
+Programmer 1 has 1 working tasks [3 ]
+
+Programmer 2 has 0 checking tasks []
+Programmer 2 has 0 working tasks []
+
+---------------------------------
+
+OK:-------------- 20 -------------------
+Programmer 1 has 0 checking tasks []
+Programmer 1 has 1 working tasks [3 ]
+
+Programmer 2 has 0 checking tasks []
+Programmer 2 has 0 working tasks []
+
+---------------------------------
+
+OK:-------------- 21 -------------------
+Programmer 1 has 0 checking tasks []
+Programmer 1 has 1 working tasks [3 ]
+
+Programmer 2 has 0 checking tasks []
+Programmer 2 has 0 working tasks []
+
+---------------------------------
+
+OK:-------------- 22 -------------------
+Programmer 1 has 0 checking tasks []
+Programmer 1 has 0 working tasks []
+
+Programmer 2 has 1 checking tasks [3 ]
+Programmer 2 has 0 working tasks []
+
+---------------------------------
+
+OK:-------------- 23 -------------------
+Programmer 1 has 0 checking tasks []
+Programmer 1 has 0 working tasks []
+
+Programmer 2 has 1 checking tasks [3 ]
+Programmer 2 has 0 working tasks []
+
+---------------------------------
+
+OK:-------------- 24 -------------------
+Programmer 1 has 0 checking tasks []
+Programmer 1 has 0 working tasks []
+
+Programmer 2 has 1 checking tasks [3 ]
+Programmer 2 has 0 working tasks []
+
+---------------------------------
+
+OK:-------------- 25 -------------------
+Programmer 1 has 0 checking tasks []
+Programmer 1 has 0 working tasks []
+
+Programmer 2 has 1 checking tasks [3 ]
+Programmer 2 has 0 working tasks []
+
+---------------------------------
+
+OK:-------------- 26 -------------------
+Programmer 1 has 0 checking tasks []
+Programmer 1 has 0 working tasks []
+
+Programmer 2 has 1 checking tasks [3 ]
+Programmer 2 has 0 working tasks []
+
+---------------------------------
+
+OK:-------------- 27 -------------------
+Programmer 1 has 0 checking tasks []
+Programmer 1 has 0 working tasks []
+
+Programmer 2 has 1 checking tasks [3 ]
+Programmer 2 has 0 working tasks []
+
+---------------------------------
+
+OK:-------------- 28 -------------------
+Programmer 1 has 0 checking tasks []
+Programmer 1 has 1 working tasks [3 ]
+
+Programmer 2 has 0 checking tasks []
+Programmer 2 has 0 working tasks []
+
+---------------------------------
+
+OK:-------------- 29 -------------------
+Programmer 1 has 0 checking tasks []
+Programmer 1 has 1 working tasks [3 ]
+
+Programmer 2 has 0 checking tasks []
+Programmer 2 has 0 working tasks []
+
+---------------------------------
+
+OK:-------------- 30 -------------------
+Programmer 1 has 0 checking tasks []
+Programmer 1 has 1 working tasks [3 ]
+
+Programmer 2 has 0 checking tasks []
+Programmer 2 has 0 working tasks []
+
+---------------------------------
+
+OK:-------------- 31 -------------------
+Programmer 1 has 0 checking tasks []
+Programmer 1 has 1 working tasks [3 ]
+
+Programmer 2 has 0 checking tasks []
+Programmer 2 has 0 working tasks []
+
+---------------------------------
+
+OK:-------------- 32 -------------------
+Programmer 1 has 0 checking tasks []
+Programmer 1 has 1 working tasks [3 ]
+
+Programmer 2 has 0 checking tasks []
+Programmer 2 has 0 working tasks []
+
+---------------------------------
+
+OK:-------------- 33 -------------------
+Programmer 1 has 0 checking tasks []
+Programmer 1 has 1 working tasks [3 ]
+
+Programmer 2 has 0 checking tasks []
+Programmer 2 has 0 working tasks []
+
+---------------------------------
+
+OK:-------------- 34 -------------------
+Programmer 1 has 0 checking tasks []
+Programmer 1 has 0 working tasks []
+
+Programmer 2 has 1 checking tasks [3 ]
+Programmer 2 has 0 working tasks []
+
+---------------------------------
+
+OK:-------------- 35 -------------------
+Programmer 1 has 0 checking tasks []
+Programmer 1 has 0 working tasks []
+
+Programmer 2 has 1 checking tasks [3 ]
+Programmer 2 has 0 working tasks []
+
+---------------------------------
+
+OK:-------------- 36 -------------------
+Programmer 1 has 0 checking tasks []
+Programmer 1 has 0 working tasks []
+
+Programmer 2 has 1 checking tasks [3 ]
+Programmer 2 has 0 working tasks []
+
+---------------------------------
+
+OK:-------------- 37 -------------------
+Programmer 1 has 0 checking tasks []
+Programmer 1 has 0 working tasks []
+
+Programmer 2 has 1 checking tasks [3 ]
+Programmer 2 has 0 working tasks []
+
+---------------------------------
+
+OK:-------------- 38 -------------------
+Programmer 1 has 0 checking tasks []
+Programmer 1 has 0 working tasks []
+
+Programmer 2 has 1 checking tasks [3 ]
+Programmer 2 has 0 working tasks []
+
+---------------------------------
+
+OK:-------------- 39 -------------------
+Programmer 1 has 0 checking tasks []
+Programmer 1 has 0 working tasks []
+
+Programmer 2 has 1 checking tasks [3 ]
+Programmer 2 has 0 working tasks []
+
+---------------------------------
+
+OK:-------------- 40 -------------------
+Programmer 1 has 0 checking tasks []
+Programmer 1 has 0 working tasks []
+
+Programmer 2 has 0 checking tasks []
+Programmer 2 has 0 working tasks []
+
+---------------------------------
+
+OK:-------------- 41 -------------------
+Programmer 1 has 0 checking tasks []
+Programmer 1 has 0 working tasks []
+
+Programmer 2 has 0 checking tasks []
+Programmer 2 has 0 working tasks []
+
+---------------------------------
+
+OK:-------------- 42 -------------------
+Programmer 1 has 0 checking tasks []
+Programmer 1 has 0 working tasks []
+
+Programmer 2 has 0 checking tasks []
+Programmer 2 has 0 working tasks []
+
+---------------------------------
+
+Server disconnected!

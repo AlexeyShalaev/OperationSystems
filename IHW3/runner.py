@@ -9,7 +9,7 @@ def write_to_file(filename, content):
 
 
 def run(PROGRAM_FOLDER):
-    current_timestamp = str(time.time())
+    current_timestamp = str(int(time.time()))
 
     docker_compose_filename = f"docker-compose-{current_timestamp}.yml"
 
@@ -40,26 +40,12 @@ def run(PROGRAM_FOLDER):
     print(f"START CLIENT: {RUN_CLIENT_CMD}")
     print(f"START MONITOR: {RUN_MONITOR_CMD}")
 
-    server_process = subprocess.run(
-        RUN_SERVER_CMD, stdout=subprocess.PIPE, text=True)
-    client_process = subprocess.run(
-        RUN_CLIENT_CMD, stdout=subprocess.PIPE, text=True)
-    monitor_process = subprocess.run(
-        RUN_MONITOR_CMD, stdout=subprocess.PIPE, text=True)
-
     input("Press Enter to continue...")
-
-    write_to_file(f"server_output_{
-                  current_timestamp}.txt", server_process.stdout)
-    write_to_file(f"client_output_{
-                  current_timestamp}.txt", client_process.stdout)
-    write_to_file(f"monitor_output_{
-                  current_timestamp}.txt", monitor_process.stdout)
 
     os.system(f"docker compose -f {docker_compose_filename} rm -fsv")
     os.remove(docker_compose_filename)
     print(f"EMULATING EXITED WITH CODE {result}")
 
 
-PROGRAM_FOLDER = "10points"
+PROGRAM_FOLDER = "9-10points"
 run(PROGRAM_FOLDER)

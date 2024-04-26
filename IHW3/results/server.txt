@@ -1,0 +1,34 @@
+docker exec -it app ./server --tasks_number 3
+Programmer registered with id: 1
+Programmer registered with id: 2
+Programmer 1 is working on task 1
+Programmer 2 is working on task 2
+Task 1 sent to check to programmer 2
+Task 2 sent to check to programmer 1
+Programmer 1 is checking task 2
+Programmer 2 is checking task 1
+Task 2 is correct
+Task 1 is correct
+Programmer 1 is working on task 3
+Task 3 sent to check to programmer 2
+Programmer 2 is checking task 3
+Programmer 1 is waiting for checking his task
+Programmer 1 is waiting for checking his task
+Task 3 is incorrect
+Programmer 1 is working on task 3
+Task 3 sent to check to programmer 2
+Programmer 1 is waiting for checking his task
+Programmer 2 is checking task 3
+Programmer 1 is waiting for checking his task
+Programmer 1 is waiting for checking his task
+Programmer 1 is waiting for checking his task
+Task 3 is incorrect
+Programmer 1 is working on task 3
+Task 3 sent to check to programmer 2
+Programmer 1 is waiting for checking his task
+Programmer 2 is checking task 3
+Programmer 1 is waiting for checking his task
+Programmer 1 is waiting for checking his task
+Programmer 1 is waiting for checking his task
+Task 3 is correct
+^CInterrupt signal (2) received.

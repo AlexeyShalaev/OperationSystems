@@ -1,0 +1,40 @@
+docker exec -it app ./client --programmers_number 2
+Programmer registered with id: 1
+Programmer registered with id: 2
+[1] Taken task: FkcZNYtgzO
+[2] Taken task: ZBhoMmbkyl
+[1] Task for check: 2
+[2] Task for check: 1
+[1] Task checked: 2 - CORRECT
+[2] Task checked: 1 - CORRECT
+[1] Taken task: UbFYkXLIDi
+[2] Wait for check
+[2] Task for check: 3
+[1] Wait for check
+[1] Wait for check
+[2] Task checked: 3 - INCORRECT
+[2] Wait for check
+[1] Taken task: UbFYkXLIDi
+[2] Wait for check
+[1] Wait for check
+[2] Task for check: 3
+[1] Wait for check
+[1] Wait for check
+[1] Wait for check
+[2] Task checked: 3 - INCORRECT
+[2] Wait for check
+[1] Taken task: UbFYkXLIDi
+[2] Wait for check
+[2] Wait for check
+[2] Wait for check
+[1] Wait for check
+[2] Task for check: 3
+[1] Wait for check
+[1] Wait for check
+[1] Wait for check
+[2] Task checked: 3 - CORRECT
+[2] no tasks
+Programmer 2 finished work
+[1] no tasks
+Programmer 1 finished work
+All programmers finished work.

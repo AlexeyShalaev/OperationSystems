@@ -2,7 +2,7 @@ version: '3'
 services:
   app:
     build:
-      context: ./programs/8points/
+      context: ./programs/9-10points/
       dockerfile: Dockerfile  
     container_name: app
     tty: true

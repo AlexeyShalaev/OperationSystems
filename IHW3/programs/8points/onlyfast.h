@@ -116,54 +116,59 @@ namespace onlyfast
                     char buffer[buffer_size];
                     ssize_t bytes_read;
                     fd_set readfds; // Множество файловых дескрипторов для использования с select()
+                    int max_fd = 0;
+
+                    // Устанавливаем таймаут на 1 секунду
+                    struct timeval timeout;
+                    timeout.tv_sec = 1;
+                    timeout.tv_usec = 0;
 
                     while (true)
                     {
+                        FD_ZERO(&readfds);
+
                         for (auto clnt_sock : clnt_sockets)
                         {
-
-                            FD_ZERO(&readfds);           // Очищаем множество перед каждой итерацией
-                            FD_SET(clnt_sock, &readfds); // Добавляем socket в множество
-
-                            // Устанавливаем таймаут на 1 секунду
-                            struct timeval timeout;
-                            timeout.tv_sec = 1;
-                            timeout.tv_usec = 0;
-
-                            // Вызываем select() с таймаутом
-                            int activity = select(clnt_sock + 1, &readfds, NULL, NULL, &timeout);
-                            if (activity == -1)
+                            FD_SET(clnt_sock, &readfds);
+                            if (clnt_sock > max_fd)
                             {
-                                // Ошибка при вызове select()
-                                perror("Error in select()");
-                                exit(EXIT_FAILURE);
+                                max_fd = clnt_sock;
                             }
-                            else if (activity == 0)
-                            {
-                                // Таймаут истек, данные не получены
-                                continue;
-                            }
+                        }
 
-                            // Проверяем, готовы ли к чтению
-                            if (FD_ISSET(clnt_sock, &readfds))
+                        // Вызываем select() с таймаутом
+                        int activity = select(max_fd + 1, &readfds, NULL, NULL, &timeout);
+                        if (activity == -1)
+                        {
+                            // Ошибка при вызове select()
+                            perror("Error in select()");
+                            exit(EXIT_FAILURE);
+                        }
+                        else if (activity > 0)
+                        {
+                            for (auto clnt_sock : clnt_sockets)
                             {
-                                // stdin готов к чтению, читаем данные
-                                bytes_read = read(clnt_sock, buffer, buffer_size);
-                                if (bytes_read <= 0)
+                                // Проверяем, готовы ли к чтению
+                                if (FD_ISSET(clnt_sock, &readfds))
                                 {
-                                    // Ошибка чтения или конец потока
-                                    continue;
-                                }
+                                    // stdin готов к чтению, читаем данные
+                                    bytes_read = read(clnt_sock, buffer, buffer_size);
+                                    if (bytes_read <= 0)
+                                    {
+                                        // Ошибка чтения или конец потока
+                                        continue;
+                                    }
 
-                                auto msg = std::string(buffer, bytes_read);
-                                std::cout << "[BROKER] Received message: " << msg << std::endl;
-                                if (msg.rfind(unsubscribe_cmd, 0) == 0)
-                                {
-                                    unsubscribe(clnt_sock);
-                                    CloseSocket(clnt_sock);
+                                    auto msg = std::string(buffer, bytes_read);
+                                    if (msg.rfind(unsubscribe_cmd, 0) == 0)
+                                    {
+                                        unsubscribe(clnt_sock);
+                                        CloseSocket(clnt_sock);
+                                    }
                                 }
                             }
                         }
+
                         std::this_thread::sleep_for(std::chrono::milliseconds(1000));
                     }
                 }
@@ -858,5 +863,4 @@ namespace onlyfast
             }
         }
     };
-
 }

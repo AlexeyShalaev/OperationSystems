@@ -47,5 +47,5 @@ def run(PROGRAM_FOLDER):
     print(f"EMULATING EXITED WITH CODE {result}")
 
 
-PROGRAM_FOLDER = "9-10points"
+PROGRAM_FOLDER = "6-10points"
 run(PROGRAM_FOLDER)

@@ -309,7 +309,6 @@ int main(int argc, char **argv)
     args.AddArgument("host", onlyfast::Arguments::ArgType::STRING, "Host to listen on", "127.0.0.1");
     args.AddArgument("port", onlyfast::Arguments::ArgType::INT, "Port to listen on", "80");
     args.AddArgument("buffer_size", onlyfast::Arguments::ArgType::INT, "Buffer size", "1024");
-    args.AddArgument("max_clients", onlyfast::Arguments::ArgType::INT, "Maximum number of connected clients", "10");
     args.AddArgument("debug", onlyfast::Arguments::ArgType::BOOL, "Debug mode", "false");
     if (!args.Parse(argc, argv))
     {
@@ -320,10 +319,9 @@ int main(int argc, char **argv)
     auto host = args.Get("host", "127.0.0.1");
     auto port = args.GetInt("port", 80);
     auto buffer_size = args.GetInt("buffer_size", 1024);
-    auto max_clients = args.GetInt("max_clients", 10);
     auto debug = args.GetBool("debug", false);
 
-    onlyfast::network::Server server(host, port, buffer_size, max_clients, onlyfast::network::Server::DefaultRequestHandler, debug);
+    onlyfast::network::Server server(host, port, buffer_size, onlyfast::network::Server::DefaultRequestHandler, debug);
     server.SetAfterResponse([&](const onlyfast::network::Request &request, const onlyfast::network::Response &response)
                             { server.notifyAll(solution.getState()); });
 

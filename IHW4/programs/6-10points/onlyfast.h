@@ -1,5 +1,7 @@
 #pragma once
 
+#include <algorithm>
+#include <atomic>
 #include <iostream>
 #include <string>
 #include <functional>
@@ -17,7 +19,6 @@
 #include <arpa/inet.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
-#include <sys/select.h>
 
 namespace onlyfast
 {
@@ -54,6 +55,7 @@ namespace onlyfast
         // Структура запроса
         struct Request
         {
+            sockaddr_in client_addr;
             std::string ip;
             std::string body;
         };
@@ -82,117 +84,49 @@ namespace onlyfast
             class MonitorBroker
             {
             public:
-                MonitorBroker(int buffer_size = 1024) : buffer_size(buffer_size)
+                MonitorBroker(int serv_sock) : serv_sock(serv_sock) {}
+                void subscribe(const sockaddr_in &clnt_addr)
                 {
-                    std::thread(&MonitorBroker::accept_messages, this).detach();
+                    clnt_addrs.push_back(clnt_addr);
                 }
 
-                void subscribe(int clnt_sock)
+                void unsubscribe(const sockaddr_in &clnt_addr)
                 {
-                    clnt_sockets.insert(clnt_sock);
-                }
-
-                void unsubscribe(int clnt_sock)
-                {
-                    clnt_sockets.erase(clnt_sock);
+                    auto it = std::remove_if(clnt_addrs.begin(), clnt_addrs.end(),
+                                             [&clnt_addr](const sockaddr_in &addr)
+                                             {
+                                                 return addr.sin_addr.s_addr == clnt_addr.sin_addr.s_addr &&
+                                                        addr.sin_port == clnt_addr.sin_port;
+                                             });
+                    clnt_addrs.erase(it, clnt_addrs.end());
                 }
 
                 void notify(std::string message)
                 {
                     onlyfast::network::Response response{.status = onlyfast::network::ResponseStatus::OK, .body = message};
-                    for (auto clnt_sock : clnt_sockets)
+                    for (const auto &clnt_addr : clnt_addrs)
                     {
-                        onlyfast::network::Server::SendResponse(clnt_sock, response);
+                        onlyfast::network::Server::SendResponse(serv_sock, clnt_addr, response);
                     }
                 }
 
             private:
-                std::set<int> clnt_sockets;
-                int buffer_size;
-                std::string unsubscribe_cmd = "UNSUBSCRIBE:";
-
-                void accept_messages()
-                {
-                    char buffer[buffer_size];
-                    ssize_t bytes_read;
-                    fd_set readfds; // Множество файловых дескрипторов для использования с select()
-                    int max_fd = 0;
-
-                    // Устанавливаем таймаут на 1 секунду
-                    struct timeval timeout;
-                    timeout.tv_sec = 1;
-                    timeout.tv_usec = 0;
-
-                    while (true)
-                    {
-                        FD_ZERO(&readfds);
-
-                        for (auto clnt_sock : clnt_sockets)
-                        {
-                            FD_SET(clnt_sock, &readfds);
-                            if (clnt_sock > max_fd)
-                            {
-                                max_fd = clnt_sock;
-                            }
-                        }
-
-                        // Вызываем select() с таймаутом
-                        int activity = select(max_fd + 1, &readfds, NULL, NULL, &timeout);
-                        if (activity == -1)
-                        {
-                            // Ошибка при вызове select()
-                            perror("Error in select()");
-                            exit(EXIT_FAILURE);
-                        }
-                        else if (activity > 0)
-                        {
-                            for (auto clnt_sock : clnt_sockets)
-                            {
-                                // Проверяем, готовы ли к чтению
-                                if (FD_ISSET(clnt_sock, &readfds))
-                                {
-                                    // stdin готов к чтению, читаем данные
-                                    bytes_read = read(clnt_sock, buffer, buffer_size);
-                                    if (bytes_read <= 0)
-                                    {
-                                        // Ошибка чтения или конец потока
-                                        continue;
-                                    }
-
-                                    auto msg = std::string(buffer, bytes_read);
-                                    if (msg.rfind(unsubscribe_cmd, 0) == 0)
-                                    {
-                                        unsubscribe(clnt_sock);
-                                        CloseSocket(clnt_sock);
-                                    }
-                                }
-                            }
-                        }
-
-                        std::this_thread::sleep_for(std::chrono::milliseconds(1000));
-                    }
-                }
+                int serv_sock;
+                std::vector<sockaddr_in> clnt_addrs;
             };
 
         public:
             Server(const std::string &ip = "127.0.0.1",
                    int port = 80,
                    int buffer_size = 1024,
-                   int max_clients = 10,
                    RequestHandlerType handler = Server::DefaultRequestHandler,
                    bool debug = false) : debug(debug),
                                          logger(std::cout, debug),
                                          serv_sock(CreateSocket(ip, port)),
                                          buffer_size(buffer_size),
                                          request_handler(std::move(handler)),
-                                         monitorBroker(buffer_size)
+                                         monitorBroker(serv_sock)
             {
-                if (listen(serv_sock, max_clients) == -1)
-                {
-                    perror("listen() error");
-                    exit(EXIT_FAILURE);
-                }
-
                 logger << "Server started at " << ip << ":" << port << "\n";
             }
 
@@ -203,7 +137,7 @@ namespace onlyfast
 
             void Start()
             {
-                AcceptClients();
+                ReceiveRequests();
             }
 
             void SetRequestHandler(RequestHandlerType handler)
@@ -229,15 +163,15 @@ namespace onlyfast
                 return response;
             }
 
-            static void SendResponse(int client_sock, const Response &response)
+            static void SendResponse(int serv_sock, const sockaddr_in &clnt_addr, const Response &response)
             {
                 // Формирование ответа в строковом виде
                 std::string buffer = ConvertResponseStatusToString(response.status) + ":" + response.body;
-                // Отправка ответа клиенту
-                ssize_t bytes_written = write(client_sock, buffer.c_str(), buffer.length());
-                if (bytes_written <= 0)
+                ssize_t bytes_sent = sendto(serv_sock, buffer.c_str(), buffer.length(), 0,
+                                            (struct sockaddr *)&clnt_addr, sizeof(clnt_addr));
+                if (bytes_sent <= 0)
                 {
-                    perror("write() error");
+                    perror("sendto() error");
                 }
             }
 
@@ -259,7 +193,7 @@ namespace onlyfast
             // Функции для работы с сокетами
             int CreateSocket(const std::string &ip, int port)
             {
-                int sock = socket(PF_INET, SOCK_STREAM, 0);
+                int sock = socket(PF_INET, SOCK_DGRAM, IPPROTO_UDP);
                 if (sock == -1)
                 {
                     perror("socket() error");
@@ -280,31 +214,25 @@ namespace onlyfast
                 return sock;
             }
 
-            void AcceptClients()
+            void ReceiveRequests()
             {
                 struct sockaddr_in clnt_addr;
+                socklen_t clnt_addr_size;
                 clnt_addr.sin_family = AF_INET;
                 clnt_addr.sin_addr.s_addr = htonl(INADDR_LOOPBACK); // Example IP address (localhost)
-                socklen_t clnt_addr_size = sizeof(clnt_addr);
-                char ip_addr[INET_ADDRSTRLEN]; // Buffer to store the IP address string
+                char ip_addr[INET_ADDRSTRLEN];                      // Buffer to store the IP address string
 
                 while (1)
                 {
                     try
                     {
-                        int clnt_sock = accept(serv_sock, (struct sockaddr *)&clnt_addr, &clnt_addr_size);
-                        if (clnt_sock == -1)
-                        {
-                            perror("accept() error");
-                            continue;
-                        }
-
+                        clnt_addr_size = sizeof(clnt_addr);
                         // Convert binary IP address to string
                         const char *result = inet_ntop(AF_INET, &(clnt_addr.sin_addr), ip_addr, INET_ADDRSTRLEN);
 
                         // Обработка клиентского подключения
-                        std::string body = ReadRequestBody(clnt_sock);
-                        Request request{ip_addr, body};
+                        std::string body = ReadRequestBody(clnt_addr, clnt_addr_size);
+                        Request request{clnt_addr, ip_addr, body};
                         if (result != NULL)
                         {
                             request.ip = result;
@@ -316,15 +244,23 @@ namespace onlyfast
 
                         if (body == "SUBSCRIBE:")
                         {
-                            monitorBroker.subscribe(clnt_sock);
+                            monitorBroker.subscribe(clnt_addr);
                             response = {ResponseStatus::OK, "Subscribed"};
-                            SendResponse(clnt_sock, response);
+                            SendResponse(serv_sock, clnt_addr, response);
                         }
                         else
                         {
-                            response = request_handler(request);
-                            SendResponse(clnt_sock, response);
-                            CloseSocket(clnt_sock);
+                            if (body == "UNSUBSCRIBE:")
+                            {
+                                monitorBroker.unsubscribe(clnt_addr);
+                                response = {ResponseStatus::OK, "Unsubscribed"};
+                            }
+                            else
+                            {
+                                response = request_handler(request);
+                            }
+
+                            SendResponse(serv_sock, clnt_addr, response);
                         }
 
                         logger << "Sent response: " << response.body << "\n";
@@ -340,22 +276,17 @@ namespace onlyfast
                 logger << "Server stopped\n";
             }
 
-            std::string ReadRequestBody(int client_sock)
+            std::string ReadRequestBody(struct sockaddr_in &clnt_addr, socklen_t &clnt_addr_size)
             {
                 char buffer[buffer_size];
-                ssize_t bytes_read = read(client_sock, buffer, buffer_size);
+                ssize_t bytes_read = recvfrom(serv_sock, buffer, buffer_size, 0, (struct sockaddr *)&clnt_addr, &clnt_addr_size);
                 if (bytes_read <= 0)
                 {
-                    perror("read() error");
+                    perror("recvfrom() error");
                     throw std::runtime_error("Failed to read data from client");
                 }
 
                 return std::string(buffer, bytes_read);
-            }
-
-            static void CloseSocket(int sock)
-            {
-                close(sock);
             }
 
             static std::string ConvertResponseStatusToString(ResponseStatus status)
@@ -384,56 +315,48 @@ namespace onlyfast
                                          buffer_size(buffer_size)
 
             {
-            }
-
-            Response SendRequest(const std::string &request_body)
-            {
-                int sock = socket(PF_INET, SOCK_STREAM, 0);
+                sock = socket(PF_INET, SOCK_DGRAM, IPPROTO_UDP);
                 if (sock == -1)
                 {
                     perror("socket() error");
                     exit(EXIT_FAILURE);
                 }
+            }
 
-                if (connect(sock, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) == -1)
+            Response SendRequest(const std::string &request_body)
+            {
+                ssize_t bytes_sent = sendto(sock, request_body.c_str(), request_body.length(), 0, (struct sockaddr *)&serv_addr, sizeof(serv_addr));
+                if (bytes_sent <= 0)
                 {
-                    perror("connect() error");
-                    exit(EXIT_FAILURE);
-                }
-
-                ssize_t bytes_written = write(sock, request_body.c_str(), request_body.length());
-                if (bytes_written <= 0)
-                {
-                    perror("write() error");
+                    perror("sendto() error");
                     exit(EXIT_FAILURE);
                 }
 
                 logger << "Sent request: " << request_body << "\n";
 
                 char buffer[buffer_size];
-                ssize_t bytes_read = read(sock, buffer, buffer_size);
+                struct sockaddr_in from_addr;
+                socklen_t from_addr_size = sizeof(from_addr);
+                ssize_t bytes_read = recvfrom(sock, buffer, buffer_size, 0, (struct sockaddr *)&from_addr, &from_addr_size);
                 if (bytes_read <= 0)
                 {
-                    perror("read() error");
+                    perror("recvfrom() error");
                     exit(EXIT_FAILURE);
                 }
 
-                close(sock);
-
                 std::string response_body(buffer, bytes_read);
-
                 logger << "Received response: " << response_body << "\n";
 
                 size_t pos = response_body.find(':');
                 std::string status = response_body.substr(0, pos);
                 std::string body = response_body.substr(pos + 1);
 
-                Response response{ConvertStringStatusToResponseString(status), body};
-
+                Response response{ConvertStringStatusToResponseStatus(status), body};
                 return response;
             }
 
         protected:
+            int sock;
             struct sockaddr_in serv_addr;
             int buffer_size;
             bool debug;
@@ -449,7 +372,7 @@ namespace onlyfast
                 return addr;
             }
 
-            ResponseStatus ConvertStringStatusToResponseString(std::string status)
+            ResponseStatus ConvertStringStatusToResponseStatus(std::string status)
             {
                 if (status == "OK")
                 {
@@ -550,21 +473,14 @@ namespace onlyfast
         Monitor(const std::string &ip = "127.0.0.1",
                 int port = 80,
                 int buffer_size = 1024,
-                bool debug = false) : Client(ip, port, buffer_size, debug)
+                bool debug = false) : Client(ip, port, buffer_size, debug), is_running(false), is_daemon(false)
         {
+            logger << "Monitor listening " << ip << ":" << port << "\n";
         }
 
         ~Monitor()
         {
             stop();
-        }
-
-        void stop()
-        {
-            logger << "Unsubscribing\n";
-            unsubscribe();
-            logger << "Closing socket\n";
-            close(clnt_socket);
         }
 
         void setHandler(MonitorHandlerType handler)
@@ -581,21 +497,76 @@ namespace onlyfast
             this->sleep_time = sleep_time;
         }
 
-        void run()
+        void run(bool daemon = false)
         {
-            if (!subscribe())
+            if (!is_running)
             {
-                std::cout << "Couldn't subscribe" << std::endl;
-                return;
+                is_running = true; // установка флага перед запуском потока
+                is_daemon = daemon;
+                if (!subscribe())
+                {
+                    std::cout << "Couldn't subscribe" << std::endl;
+                    return;
+                }
+                if (daemon)
+                {
+                    thread = std::thread(&Monitor::thread_run, this); // создание потока
+                }
+                else
+                {
+                    thread_run();
+                }
+
+                logger << "Monitor started\n";
             }
+        }
 
+        void stop()
+        {
+            if (is_running)
+            {
+                is_running = false; // сброс флага для остановки потока
+                if (is_daemon && thread.joinable())
+                {
+                    thread.join(); // ожидание завершения потока
+                }
+                unsubscribe();
+                logger << "Monitor stopped\n";
+            }
+        }
+
+    private:
+        MonitorHandlerType handler;
+        int sleep_time = 1000; // milliseconds
+        int clnt_socket;
+        std::atomic<bool> is_running; // флаг для управления выполнением потока
+        std::atomic<bool> is_daemon;
+        std::thread thread; // объект потока
+
+        bool subscribe()
+        {
+            network::Response response = SendRequest("SUBSCRIBE:");
+            return response.status == network::ResponseStatus::OK;
+        }
+
+        bool unsubscribe()
+        {
+            network::Response response = SendRequest("UNSUBSCRIBE:");
+            return response.status == network::ResponseStatus::OK;
+        }
+
+        void thread_run()
+        {
             char buffer[buffer_size];
+            struct sockaddr_in from_addr;
+            socklen_t from_addr_size;
+            ssize_t bytes_read;
 
-            while (true)
+            while (is_running)
             {
 
-                ssize_t bytes_read = read(clnt_socket, buffer, buffer_size);
-
+                from_addr_size = sizeof(from_addr);
+                bytes_read = recvfrom(sock, buffer, buffer_size, 0, (struct sockaddr *)&from_addr, &from_addr_size);
                 if (bytes_read <= 0)
                 {
                     std::this_thread::sleep_for(std::chrono::milliseconds(sleep_time));
@@ -605,73 +576,6 @@ namespace onlyfast
                 std::string response_body(buffer, bytes_read);
 
                 handler(response_body);
-            }
-        }
-
-    private:
-        MonitorHandlerType handler;
-        int sleep_time = 1000; // milliseconds
-        int clnt_socket;
-
-        bool subscribe()
-        {
-            std::string request_body = "SUBSCRIBE:";
-            clnt_socket = socket(PF_INET, SOCK_STREAM, 0);
-            if (clnt_socket == -1)
-            {
-                perror("socket() error");
-                exit(EXIT_FAILURE);
-            }
-
-            if (connect(clnt_socket, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) == -1)
-            {
-                perror("connect() error");
-                exit(EXIT_FAILURE);
-            }
-
-            ssize_t bytes_written = write(clnt_socket, request_body.c_str(), request_body.length());
-            if (bytes_written <= 0)
-            {
-                perror("write() error");
-                exit(EXIT_FAILURE);
-            }
-
-            logger << "Sent request: " << request_body << "\n";
-
-            char buffer[buffer_size];
-            ssize_t bytes_read = read(clnt_socket, buffer, buffer_size);
-            if (bytes_read <= 0)
-            {
-                perror("read() error");
-                exit(EXIT_FAILURE);
-            }
-
-            std::string response_body(buffer, bytes_read);
-
-            logger << "Received response: " << response_body << "\n";
-
-            size_t pos = response_body.find(':');
-            std::string status = response_body.substr(0, pos);
-            std::string body = response_body.substr(pos + 1);
-
-            network::Response response{ConvertStringStatusToResponseString(status), body};
-
-            if (response.status != network::ResponseStatus::OK)
-            {
-                return false;
-            }
-            return true;
-        }
-
-        void unsubscribe()
-        {
-            std::string request_body = "UNSUBSCRIBE:";
-
-            ssize_t bytes_written = write(clnt_socket, request_body.c_str(), request_body.length());
-            if (bytes_written <= 0)
-            {
-                perror("write() error");
-                exit(EXIT_FAILURE);
             }
         }
     };
@@ -864,4 +768,5 @@ namespace onlyfast
             }
         }
     };
+
 }

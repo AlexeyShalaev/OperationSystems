@@ -68,7 +68,7 @@ namespace onlyfast
         };
 
         using RequestHandlerType = std::function<Response(const Request &)>;
-        using MiddlewareType = std::function<void(int clnt_sock, const Request &)>;
+        using MiddlewareType = std::function<void(const Request &)>;
 
         class Server
         {
@@ -76,7 +76,6 @@ namespace onlyfast
             Server(const std::string &ip = "127.0.0.1",
                    int port = 80,
                    int buffer_size = 1024,
-                   int max_clients = 10,
                    RequestHandlerType handler = Server::DefaultRequestHandler,
                    bool debug = false) : debug(debug),
                                          logger(std::cout, debug),
@@ -84,12 +83,6 @@ namespace onlyfast
                                          buffer_size(buffer_size),
                                          request_handler(std::move(handler))
             {
-                if (listen(serv_sock, max_clients) == -1)
-                {
-                    perror("listen() error");
-                    exit(EXIT_FAILURE);
-                }
-
                 logger << "Server started at " << ip << ":" << port << "\n";
             }
 
@@ -100,7 +93,7 @@ namespace onlyfast
 
             void Start()
             {
-                AcceptClients();
+                ReceiveRequests();
             }
 
             void SetRequestHandler(RequestHandlerType handler)
@@ -127,12 +120,12 @@ namespace onlyfast
             RequestHandlerType request_handler;
             bool debug;
             logger::Logger logger;
-            MiddlewareType middleware = [](int clnt_sock, const Request &request) {};
+            MiddlewareType middleware = [](const Request &request) {};
 
             // Функции для работы с сокетами
             int CreateSocket(const std::string &ip, int port)
             {
-                int sock = socket(PF_INET, SOCK_STREAM, 0);
+                int sock = socket(PF_INET, SOCK_DGRAM, IPPROTO_UDP);
                 if (sock == -1)
                 {
                     perror("socket() error");
@@ -153,7 +146,7 @@ namespace onlyfast
                 return sock;
             }
 
-            void AcceptClients()
+            void ReceiveRequests()
             {
                 struct sockaddr_in clnt_addr;
                 socklen_t clnt_addr_size = sizeof(clnt_addr);
@@ -162,22 +155,13 @@ namespace onlyfast
                 {
                     try
                     {
-                        int clnt_sock = accept(serv_sock, (struct sockaddr *)&clnt_addr, &clnt_addr_size);
-                        if (clnt_sock == -1)
-                        {
-                            perror("accept() error");
-                            continue;
-                        }
-
                         // Обработка клиентского подключения
-                        Request request = ReadRequest(clnt_sock);
+                        Request request = ReadRequest(clnt_addr, clnt_addr_size);
 
-                        middleware(clnt_sock, request);
+                        middleware(request);
 
                         Response response = request_handler(request);
-                        SendResponse(clnt_sock, response);
-
-                        CloseSocket(clnt_sock);
+                        SendResponse(clnt_addr, clnt_addr_size, response);
                     }
                     catch (const std::exception &e)
                     {
@@ -188,13 +172,13 @@ namespace onlyfast
                 logger << "Server stopped\n";
             }
 
-            Request ReadRequest(int client_sock)
+            Request ReadRequest(struct sockaddr_in &clnt_addr, socklen_t &clnt_addr_size)
             {
                 char buffer[buffer_size];
-                ssize_t bytes_read = read(client_sock, buffer, buffer_size);
+                ssize_t bytes_read = recvfrom(serv_sock, buffer, buffer_size, 0, (struct sockaddr *)&clnt_addr, &clnt_addr_size);
                 if (bytes_read <= 0)
                 {
-                    perror("read() error");
+                    perror("recvfrom() error");
                     throw std::runtime_error("Failed to read data from client");
                 }
 
@@ -204,22 +188,17 @@ namespace onlyfast
                 return request;
             }
 
-            void SendResponse(int client_sock, const Response &response)
+            void SendResponse(struct sockaddr_in &clnt_addr, socklen_t clnt_addr_size, const Response &response)
             {
                 // Формирование ответа в строковом виде
                 std::string buffer = ConvertResponseStatusToString(response.status) + ":" + response.body;
                 // Отправка ответа клиенту
-                ssize_t bytes_written = write(client_sock, buffer.c_str(), buffer.length());
-                if (bytes_written <= 0)
+                ssize_t bytes_sent = sendto(serv_sock, buffer.c_str(), buffer.length(), 0, (struct sockaddr *)&clnt_addr, clnt_addr_size);
+                if (bytes_sent <= 0)
                 {
                     perror("write() error");
                 }
                 logger << "Sent response: " << buffer << "\n";
-            }
-
-            static void CloseSocket(int sock)
-            {
-                close(sock);
             }
 
             std::string ConvertResponseStatusToString(ResponseStatus status)
@@ -248,56 +227,53 @@ namespace onlyfast
                                          buffer_size(buffer_size)
 
             {
-            }
-
-            Response SendRequest(const std::string &request_body)
-            {
-                int sock = socket(PF_INET, SOCK_STREAM, 0);
+                sock = socket(PF_INET, SOCK_DGRAM, IPPROTO_UDP);
                 if (sock == -1)
                 {
                     perror("socket() error");
                     exit(EXIT_FAILURE);
                 }
+            }
 
-                if (connect(sock, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) == -1)
-                {
-                    perror("connect() error");
-                    exit(EXIT_FAILURE);
-                }
+            ~Client()
+            {
+                close(sock);
+            }
 
-                ssize_t bytes_written = write(sock, request_body.c_str(), request_body.length());
-                if (bytes_written <= 0)
+            Response SendRequest(const std::string &request_body)
+            {
+                ssize_t bytes_sent = sendto(sock, request_body.c_str(), request_body.length(), 0, (struct sockaddr *)&serv_addr, sizeof(serv_addr));
+                if (bytes_sent <= 0)
                 {
-                    perror("write() error");
+                    perror("sendto() error");
                     exit(EXIT_FAILURE);
                 }
 
                 logger << "Sent request: " << request_body << "\n";
 
                 char buffer[buffer_size];
-                ssize_t bytes_read = read(sock, buffer, buffer_size);
+                struct sockaddr_in from_addr;
+                socklen_t from_addr_size = sizeof(from_addr);
+                ssize_t bytes_read = recvfrom(sock, buffer, buffer_size, 0, (struct sockaddr *)&from_addr, &from_addr_size);
                 if (bytes_read <= 0)
                 {
-                    perror("read() error");
+                    perror("recvfrom() error");
                     exit(EXIT_FAILURE);
                 }
 
-                close(sock);
-
                 std::string response_body(buffer, bytes_read);
-
                 logger << "Received response: " << response_body << "\n";
 
                 size_t pos = response_body.find(':');
                 std::string status = response_body.substr(0, pos);
                 std::string body = response_body.substr(pos + 1);
 
-                Response response{ConvertStringStatusToResponseString(status), body};
-
+                Response response{ConvertStringStatusToResponseStatus(status), body};
                 return response;
             }
 
         private:
+            int sock;
             struct sockaddr_in serv_addr;
             int buffer_size;
             bool debug;
@@ -313,7 +289,7 @@ namespace onlyfast
                 return addr;
             }
 
-            ResponseStatus ConvertStringStatusToResponseString(std::string status)
+            ResponseStatus ConvertStringStatusToResponseStatus(std::string status)
             {
                 if (status == "OK")
                 {
